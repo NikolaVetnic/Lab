@@ -1,0 +1,59 @@
+## Build results and compilation outputs
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+mshtml.tlb
+*.ゲートウェイ
+
+## Visual Studio cache, options, and user-specific files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Rider / JetBrains IDEs
+.idea/
+*.sln.DotSettings.user
+
+## Visual Studio Code settings
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+## Secrets and sensitive configuration files
+## NEVER commit your actual secrets to source control
+**/*secrets.json
+**/appsettings.Development.json
+
+## Client-side dependency directories (if using SPA or Bundler)
+node_modules/
+jspm_packages/
+bower_components/
+
+## Log files
+*.log
+log.txt
+
+## Operating System temporary files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+SQLite
+*.sqlite3
+*.sqlite
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
