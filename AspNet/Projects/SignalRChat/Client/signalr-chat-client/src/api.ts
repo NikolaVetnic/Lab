@@ -1,6 +1,6 @@
 import type { ActiveUsersResponse, ChatMessage, ChatUser, CreateUserRequest } from './types';
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+const apiUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export async function createUser(
     request: CreateUserRequest

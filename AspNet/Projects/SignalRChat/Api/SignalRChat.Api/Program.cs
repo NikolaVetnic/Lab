@@ -44,7 +44,12 @@ app.ApplyMigrations();
 
 app.UseCors("Frontend");
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
+
+app.MapFallbackToFile("index.html");
 
 app.Run();

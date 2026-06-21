@@ -5,7 +5,7 @@ import type { ChatMessage, ChatUser } from "./types";
 import "./App.css";
 import { handleCreateUserExternal, handleSendMessageExternal } from "./utils";
 
-const signalRChatHubUrl = import.meta.env.VITE_SIGNALR_HUB_URL;
+const signalRChatHubUrl = import.meta.env.VITE_SIGNALR_HUB_URL ?? "/hubs/chat";
 
 function App() {
   const [username, setUsername] = useState("");
