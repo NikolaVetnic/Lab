@@ -43,7 +43,6 @@ body {
 .sidebar li {
   padding: 4px 14px;
   background: #ffffff;
-  font-weight: 600;
   color: #1f2937;
   transition:
     transform 0.15s ease,
