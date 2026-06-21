@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --mode development",
+    "dev:prod-env": "vite --mode production",
     "build": "tsc -b && vite build",
     "postbuild": "node scripts/copy-dist-to-api.mjs",
     "lint": "eslint .",
