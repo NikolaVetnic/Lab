@@ -147,6 +147,13 @@ cd apps/api/operations-center
 dotnet run --project src/OperationsCenter.Api
 ```
 
+Når API-et kjører i Development, er dokumentasjon tilgjengelig på:
+
+- Swagger UI: `https://localhost:7xxx/swagger`
+- OpenAPI JSON: `https://localhost:7xxx/openapi/v1.json`
+
+Merk: Eksakt port vises i oppstart-logger og i `launchSettings.json` for API-prosjektet.
+
 ## Agentinstruksjoner
 
 Prosjektet inneholder instruksjoner for AI-agenter og GitHub Copilot:

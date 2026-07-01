@@ -1,20 +1,17 @@
+using OperationsCenter.Api.Configuration;
 using OperationsCenter.Api.Endpoints;
 using OperationsCenter.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+builder.Services.AddApiDocumentation();
 builder.Services.AddPersistence(builder.Configuration);
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
-
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.UseApiDocumentation();
 
 app.MapApiEndpoints();
 

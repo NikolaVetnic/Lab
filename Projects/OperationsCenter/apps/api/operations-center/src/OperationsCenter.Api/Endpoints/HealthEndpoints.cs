@@ -3,12 +3,16 @@ using OperationsCenter.Infrastructure.Persistence;
 
 namespace OperationsCenter.Api.Endpoints;
 
+public sealed record HealthResponse(string Status);
+
 public static class HealthEndpoints
 {
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/health", () => Results.Ok(new { status = "Healthy" }))
+        endpoints.MapGet("/health", () => Results.Ok(new HealthResponse("Healthy")))
             .WithName("GetHealth")
+            .WithSummary("Returns the basic liveness status of the API.")
+            .Produces<HealthResponse>(StatusCodes.Status200OK)
             .WithTags("Health");
 
         endpoints.MapGet(

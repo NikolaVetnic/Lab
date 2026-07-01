@@ -1,4 +1,4 @@
-@operationsCenterApiHostAddress = http://localhost:5161
+@operationsCenterApiHostAddress = http://localhost:5000
 
 GET {{operationsCenterApiHostAddress}}/health
 Accept: application/json
