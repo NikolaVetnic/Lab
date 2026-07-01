@@ -4,3 +4,8 @@ GET {{operationsCenterApiHostAddress}}/health
 Accept: application/json
 
 ###
+
+GET {{operationsCenterApiHostAddress}}/ready
+Accept: application/json
+
+###

@@ -1,0 +1,16 @@
+services:
+  operations-center-postgres:
+    image: postgres:17-alpine
+    container_name: operations-center-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: operations_center
+      POSTGRES_USER: operations_center
+      POSTGRES_PASSWORD: operations_center
+    ports:
+      - '5432:5432'
+    volumes:
+      - operations-center-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  operations-center-postgres-data:

@@ -113,10 +113,39 @@ Krav:
 - Node.js, når frontend opprettes
 - Docker Desktop eller tilsvarende, når PostgreSQL og øvrige lokale tjenester introduseres
 
+## Lokal PostgreSQL for backend
+
+PostgreSQL for lokal utvikling ligger i docker-compose-fil på repository-roten.
+
+Start database:
+
+```bash
+docker compose up -d
+```
+
+Stopp database:
+
+```bash
+docker compose down
+```
+
+Connection string-navn som brukes av API-et:
+
+- `ConnectionStrings:OperationsCenterDatabase`
+
+Standard lokal konfigurasjon er satt i `appsettings.Development.json` for API-prosjektet.
+
 ## Backend vil senere kunne startes fra
 
 cd apps/api
 dotnet run --project src/OperationsCenter.Api
+
+For nåværende løsning under `apps/api/operations-center`:
+
+```bash
+cd apps/api/operations-center
+dotnet run --project src/OperationsCenter.Api
+```
 
 ## Agentinstruksjoner
 
