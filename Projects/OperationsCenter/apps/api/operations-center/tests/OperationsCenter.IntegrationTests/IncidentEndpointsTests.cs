@@ -118,6 +118,59 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
         Assert.Equal("Incident not found.", title.GetString());
     }
 
+    [Fact]
+    public async Task UpdateIncidentStatus_WhenTransitionIsValid_ReturnsOkWithUpdatedIncident()
+    {
+        using var client = _factory.CreateClient();
+
+        var createdIncident = await CreateIncidentAsync(client, $"Update status {Guid.NewGuid()}");
+
+        var response = await client.PatchAsJsonAsync(
+            $"/incidents/{createdIncident.Id}/status",
+            new { status = IncidentStatus.InProgress });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var updated = await response.Content.ReadFromJsonAsync<IncidentDto>();
+        Assert.NotNull(updated);
+        Assert.Equal(createdIncident.Id, updated.Id);
+        Assert.Equal(IncidentStatus.InProgress, updated.Status);
+    }
+
+    [Fact]
+    public async Task UpdateIncidentStatus_WhenIncidentDoesNotExist_ReturnsNotFoundProblemDetails()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.PatchAsJsonAsync(
+            $"/incidents/{Guid.NewGuid()}/status",
+            new { status = IncidentStatus.InProgress });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(payload.RootElement.TryGetProperty("title", out var title));
+        Assert.Equal("Incident not found.", title.GetString());
+    }
+
+    [Fact]
+    public async Task UpdateIncidentStatus_WhenTransitionIsInvalid_ReturnsConflictProblemDetails()
+    {
+        using var client = _factory.CreateClient();
+
+        var createdIncident = await CreateIncidentAsync(client, $"Invalid transition {Guid.NewGuid()}");
+
+        var response = await client.PatchAsJsonAsync(
+            $"/incidents/{createdIncident.Id}/status",
+            new { status = IncidentStatus.Closed });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(payload.RootElement.TryGetProperty("title", out var title));
+        Assert.Equal("Invalid incident status transition.", title.GetString());
+    }
+
     private static async Task<IncidentDto> CreateIncidentAsync(HttpClient client, string title)
     {
         var response = await client.PostAsJsonAsync(

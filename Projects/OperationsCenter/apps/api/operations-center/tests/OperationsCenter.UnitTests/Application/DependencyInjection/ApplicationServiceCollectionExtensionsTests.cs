@@ -36,6 +36,11 @@ public sealed class ApplicationServiceCollectionExtensionsTests
             return Task.FromResult<Incident?>(null);
         }
 
+        public Task<Incident?> GetIncidentByIdForUpdateAsync(Guid incidentId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<Incident?>(null);
+        }
+
         public Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult<IReadOnlyList<Incident>>(Array.Empty<Incident>());

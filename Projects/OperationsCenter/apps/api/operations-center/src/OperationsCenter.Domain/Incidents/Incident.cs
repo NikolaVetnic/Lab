@@ -2,6 +2,15 @@ namespace OperationsCenter.Domain.Incidents;
 
 public sealed class Incident
 {
+    private static readonly IReadOnlyDictionary<IncidentStatus, IncidentStatus[]> AllowedStatusTransitions =
+        new Dictionary<IncidentStatus, IncidentStatus[]>
+        {
+            [IncidentStatus.Open] = [IncidentStatus.InProgress, IncidentStatus.Resolved],
+            [IncidentStatus.InProgress] = [IncidentStatus.Resolved],
+            [IncidentStatus.Resolved] = [IncidentStatus.InProgress, IncidentStatus.Closed],
+            [IncidentStatus.Closed] = []
+        };
+
     private Incident()
     {
     }
@@ -48,5 +57,26 @@ public sealed class Incident
         var normalizedCreatedAt = (createdAt ?? DateTimeOffset.UtcNow).ToUniversalTime();
 
         return new Incident(Guid.NewGuid(), title, description, severity, normalizedCreatedAt);
+    }
+
+    public bool TryUpdateStatus(IncidentStatus nextStatus)
+    {
+        if (!Enum.IsDefined(nextStatus))
+        {
+            throw new ArgumentOutOfRangeException(nameof(nextStatus), "Status is invalid.");
+        }
+
+        if (!AllowedStatusTransitions.TryGetValue(Status, out var validNextStatuses))
+        {
+            return false;
+        }
+
+        if (!validNextStatuses.Contains(nextStatus))
+        {
+            return false;
+        }
+
+        Status = nextStatus;
+        return true;
     }
 }

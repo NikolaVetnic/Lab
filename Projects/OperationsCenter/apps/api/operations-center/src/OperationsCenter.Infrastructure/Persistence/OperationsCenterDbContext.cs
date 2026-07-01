@@ -21,6 +21,12 @@ public sealed class OperationsCenterDbContext(DbContextOptions<OperationsCenterD
             .FirstOrDefaultAsync(incident => incident.Id == incidentId, cancellationToken);
     }
 
+    public Task<Incident?> GetIncidentByIdForUpdateAsync(Guid incidentId, CancellationToken cancellationToken)
+    {
+        return Incidents
+            .FirstOrDefaultAsync(incident => incident.Id == incidentId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken)
     {
         return await Incidents

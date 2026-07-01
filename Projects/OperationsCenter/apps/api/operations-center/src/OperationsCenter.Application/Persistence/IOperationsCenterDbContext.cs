@@ -8,6 +8,8 @@ public interface IOperationsCenterDbContext
 
     Task<Incident?> GetIncidentByIdAsync(Guid incidentId, CancellationToken cancellationToken);
 
+    Task<Incident?> GetIncidentByIdForUpdateAsync(Guid incidentId, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);

@@ -63,4 +63,28 @@ public sealed class IncidentTests
 
         Assert.Equal(TimeSpan.Zero, incident.CreatedAt.Offset);
     }
+
+    [Fact]
+    public void TryUpdateStatus_WhenTransitionIsValid_UpdatesStatus()
+    {
+        var incident = Incident.Create("Title", null, IncidentSeverity.Medium);
+
+        var movedToInProgress = incident.TryUpdateStatus(IncidentStatus.InProgress);
+        var movedToResolved = incident.TryUpdateStatus(IncidentStatus.Resolved);
+
+        Assert.True(movedToInProgress);
+        Assert.True(movedToResolved);
+        Assert.Equal(IncidentStatus.Resolved, incident.Status);
+    }
+
+    [Fact]
+    public void TryUpdateStatus_WhenTransitionIsInvalid_DoesNotUpdateStatus()
+    {
+        var incident = Incident.Create("Title", null, IncidentSeverity.Medium);
+
+        var updated = incident.TryUpdateStatus(IncidentStatus.Closed);
+
+        Assert.False(updated);
+        Assert.Equal(IncidentStatus.Open, incident.Status);
+    }
 }
