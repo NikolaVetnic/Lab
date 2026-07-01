@@ -6,4 +6,4 @@
 - Use PostgreSQL through EF Core.
 - Add tests for business rules and API behavior.
 - Do not introduce RabbitMQ, Redis or Kubernetes dependencies unless the task explicitly requires them.
-- Do not attempt to build solution to verify changes.
+- Use primary constructors where possible, and classic constructors where necessary.

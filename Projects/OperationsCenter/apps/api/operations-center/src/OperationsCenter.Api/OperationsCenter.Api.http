@@ -1,0 +1,6 @@
+@operationsCenterApiHostAddress = http://localhost:5161
+
+GET {{operationsCenterApiHostAddress}}/health
+Accept: application/json
+
+###
