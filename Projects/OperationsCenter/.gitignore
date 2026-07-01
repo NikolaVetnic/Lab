@@ -1,0 +1,142 @@
+# =========================
+# .NET / C#
+# =========================
+
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+artifacts/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+.ncrunch
+*.nupkg
+*.snupkg
+
+Visual Studio
+
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =========================
+# Node.js / Frontend
+# =========================
+
+node_modules/
+dist/
+build/
+coverage/
+.npm/
+.npmrc.local
+*.tsbuildinfo
+
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# =========================
+# Environment variables / secrets
+# =========================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
+
+secrets.json
+appsettings.Local.json
+appsettings.Development.local.json
+
+# =========================
+# VS Code
+# =========================
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# =========================
+# JetBrains Rider / IntelliJ
+# =========================
+
+.idea/
+*.sln.iml
+*.iml
+
+*.DotSettings.user
+*.sln.DotSettings.user
+
+# =========================
+# macOS
+# =========================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# =========================
+# Windows
+# =========================
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =========================
+# Logs and temporary files
+# =========================
+
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# =========================
+# Docker
+# =========================
+
+docker-compose.override.yml
+
+# =========================
+# Terraform
+# =========================
+
+**/.terraform/
+.tfstate
+.tfstate.
+crash.log
+crash..log
+*.tfvars
+.tfvars.json
+!.tfvars.example
+
+# =========================
+# Local tooling / agent workspace
+# =========================
+
+.github/copilot-local/
+.github/agent-workspace/
