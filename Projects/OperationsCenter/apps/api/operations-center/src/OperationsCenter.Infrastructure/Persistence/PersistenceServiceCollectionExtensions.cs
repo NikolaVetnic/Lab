@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OperationsCenter.Application.Persistence;
 
 namespace OperationsCenter.Infrastructure.Persistence;
 
@@ -19,6 +20,9 @@ public static class PersistenceServiceCollectionExtensions
         {
             options.UseNpgsql(connectionString);
         });
+
+        services.AddScoped<IOperationsCenterDbContext>(serviceProvider =>
+            serviceProvider.GetRequiredService<OperationsCenterDbContext>());
 
         return services;
     }

@@ -9,6 +9,14 @@ public static class HealthEndpoints
 {
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapHealthEndpoints();
+        endpoints.MapIncidentEndpoints();
+
+        return endpoints;
+    }
+
+    public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder endpoints)
+    {
         endpoints.MapGet("/health", () => Results.Ok(new HealthResponse("Healthy")))
             .WithName("GetHealth")
             .WithSummary("Returns the basic liveness status of the API.")
