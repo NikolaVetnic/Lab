@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Scrutor" Version="6.0.1" />
     <ProjectReference Include="..\OperationsCenter.Domain\OperationsCenter.Domain.csproj" />
     <ProjectReference Include="..\OperationsCenter.Contracts\OperationsCenter.Contracts.csproj" />
   </ItemGroup>

@@ -1,9 +1,10 @@
 using OperationsCenter.Application.Incidents.Contracts;
 using OperationsCenter.Application.Persistence;
+using OperationsCenter.Application.Common;
 
 namespace OperationsCenter.Application.Incidents.UseCases;
 
-public sealed class ListIncidentsUseCase(IOperationsCenterDbContext dbContext)
+public sealed class ListIncidentsUseCase(IOperationsCenterDbContext dbContext) : IUseCase
 {
     private readonly IOperationsCenterDbContext _dbContext = dbContext;
 
