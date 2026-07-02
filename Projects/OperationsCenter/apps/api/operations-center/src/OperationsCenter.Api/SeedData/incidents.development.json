@@ -1,0 +1,51 @@
+[
+  {
+    "title": "API gateway returning intermittent 502 errors",
+    "description": "Users report failed requests from EU region between 09:00 and 09:20 UTC.",
+    "severity": "High",
+    "status": "InProgress",
+    "createdAtUtc": "2026-06-30T09:05:00+00:00"
+  },
+  {
+    "title": "Nightly billing export completed with missing records",
+    "description": "Reconciliation found 17 tenants missing from export batch OC-BILL-2026-06-30.",
+    "severity": "Critical",
+    "status": "Open",
+    "createdAtUtc": "2026-06-30T06:30:00+00:00"
+  },
+  {
+    "title": "Background worker CPU saturation on node oc-worker-02",
+    "description": "CPU has remained above 92 percent for 15 minutes after deployment 2026.06.29.4.",
+    "severity": "Medium",
+    "status": "Resolved",
+    "createdAtUtc": "2026-06-29T14:42:00+00:00"
+  },
+  {
+    "title": "Delayed webhook delivery for customer notifications",
+    "description": "Outbound queue latency peaked at 11 minutes; retries recovered most deliveries.",
+    "severity": "Medium",
+    "status": "InProgress",
+    "createdAtUtc": "2026-06-29T11:12:00+00:00"
+  },
+  {
+    "title": "Object storage read timeout on attachment preview",
+    "description": "Attachment previews intermittently timeout when reading larger PDF files.",
+    "severity": "High",
+    "status": "Open",
+    "createdAtUtc": "2026-06-28T16:02:00+00:00"
+  },
+  {
+    "title": "Search index lag after schema optimization",
+    "description": "Index freshness SLA exceeded by 4 minutes after rolling maintenance.",
+    "severity": "Low",
+    "status": "Closed",
+    "createdAtUtc": "2026-06-27T10:40:00+00:00"
+  },
+  {
+    "title": "Scheduled report generation failed for Operations weekly digest",
+    "description": "Digest report job threw a template parsing exception on tenant-specific section.",
+    "severity": "Low",
+    "status": "Resolved",
+    "createdAtUtc": "2026-06-26T07:55:00+00:00"
+  }
+]

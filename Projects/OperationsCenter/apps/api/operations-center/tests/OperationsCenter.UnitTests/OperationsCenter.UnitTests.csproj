@@ -9,7 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -20,8 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\OperationsCenter.Api\OperationsCenter.Api.csproj" />
     <ProjectReference Include="..\..\src\OperationsCenter.Application\OperationsCenter.Application.csproj" />
     <ProjectReference Include="..\..\src\OperationsCenter.Domain\OperationsCenter.Domain.csproj" />
+    <ProjectReference Include="..\..\src\OperationsCenter.Infrastructure\OperationsCenter.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

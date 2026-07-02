@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OperationsCenter.Infrastructure.Development;
 using OperationsCenter.Application.Persistence;
 
 namespace OperationsCenter.Infrastructure.Persistence;
@@ -23,6 +24,7 @@ public static class PersistenceServiceCollectionExtensions
 
         services.AddScoped<IOperationsCenterDbContext>(serviceProvider =>
             serviceProvider.GetRequiredService<OperationsCenterDbContext>());
+        services.AddScoped<DevelopmentDataSeeder>();
 
         return services;
     }

@@ -154,6 +154,29 @@ Når API-et kjører i Development, er dokumentasjon tilgjengelig på:
 
 Merk: Eksakt port vises i oppstart-logger og i `launchSettings.json` for API-prosjektet.
 
+## Demo seed data for Incidents (Development only)
+
+Incident-modulen har en utviklings-seeder med realistiske demo-hendelser for lokal testing og manuell utforskning av API-flyt (create/list/get/status).
+
+Seed-data kjøres kun eksplisitt og kun i Development. Dette forhindrer utilsiktede dataendringer i andre miljøer.
+
+Kjør seed-script fra repository-roten:
+
+```bash
+./scripts/seed-dev-data.sh
+```
+
+Scriptet:
+
+- starter lokal PostgreSQL-container (`operations-center-postgres`) om nødvendig
+- venter til databasen er klar
+- kjører API i eksplisitt seed-modus: `dotnet run --project src/OperationsCenter.Api -- --seed`
+
+Viktig for tester:
+
+- Integration-tester må opprette egne testdata
+- tester skal ikke være avhengige av seedede incidents
+
 ## Agentinstruksjoner
 
 Prosjektet inneholder instruksjoner for AI-agenter og GitHub Copilot:

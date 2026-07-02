@@ -15,6 +15,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="OperationsCenter.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="SeedData/**/*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\OperationsCenter.Application\OperationsCenter.Application.csproj" />
     <ProjectReference Include="..\OperationsCenter.Infrastructure\OperationsCenter.Infrastructure.csproj" />
   </ItemGroup>

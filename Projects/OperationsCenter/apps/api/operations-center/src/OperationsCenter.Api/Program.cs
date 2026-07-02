@@ -10,6 +10,11 @@ builder.Services.AddApiDocumentation();
 builder.Services.AddApplicationServices();
 builder.Services.AddPersistence(builder.Configuration);
 
+if (await builder.TryRunDevelopmentSeedAsync(args))
+{
+    return;
+}
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
