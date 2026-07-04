@@ -22,10 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\OperationsCenter.Api\OperationsCenter.Api.csproj" />
-    <ProjectReference Include="..\..\src\OperationsCenter.Application\OperationsCenter.Application.csproj" />
-    <ProjectReference Include="..\..\src\OperationsCenter.Domain\OperationsCenter.Domain.csproj" />
-    <ProjectReference Include="..\..\src\OperationsCenter.Infrastructure\OperationsCenter.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\OperationsCenter\OperationsCenter.Api\OperationsCenter.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\OperationsCenter\OperationsCenter.Application\OperationsCenter.Application.csproj" />
+    <ProjectReference Include="..\..\..\src\OperationsCenter\OperationsCenter.Domain\OperationsCenter.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\OperationsCenter\OperationsCenter.Infrastructure\OperationsCenter.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -62,9 +62,13 @@ Når en modul har et tydelig selvstendig ansvar og reelt behov for separat deplo
 │ └── workflows/
 ├── apps/
 │ ├── api/
-│ │ ├── AGENTS.md
-│ │ ├── src/
-│ │ └── tests/
+│ │ ├── operations-center/
+│ │ │ ├── AGENTS.md
+│ │ │ ├── src/
+│ │ │ │ ├── BuildingBlocks/
+│ │ │ │ └── OperationsCenter/
+│ │ │ └── tests/
+│ │ │ └── OperationsCenter/
 │ └── web/
 │ └── AGENTS.md
 ├── docs/
@@ -135,16 +139,11 @@ Connection string-navn som brukes av API-et:
 
 Standard lokal konfigurasjon er satt i `appsettings.Development.json` for API-prosjektet.
 
-## Backend vil senere kunne startes fra
-
-cd apps/api
-dotnet run --project src/OperationsCenter.Api
-
 For nåværende løsning under `apps/api/operations-center`:
 
 ```bash
 cd apps/api/operations-center
-dotnet run --project src/OperationsCenter.Api
+dotnet run --project src/OperationsCenter/OperationsCenter.Api
 ```
 
 Når API-et kjører i Development, er dokumentasjon tilgjengelig på:
@@ -195,6 +194,12 @@ Viktige og langvarige tekniske beslutninger dokumenteres som Architecture Decisi
 Første dokumenterte ADR:
 
 - `0001-internal-mediator-cqrs.md` beskriver intern CQRS mediator-implementasjon uten ekstern MediatR-avhengighet.
+
+Backend-kode er nå gruppert slik:
+
+- `apps/api/operations-center/src/OperationsCenter/` for applikasjonsprosjekter
+- `apps/api/operations-center/src/BuildingBlocks/` for delte interne building blocks
+- `apps/api/operations-center/tests/OperationsCenter/` for testprosjekter
 
 ## Status
 

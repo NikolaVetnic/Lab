@@ -27,7 +27,7 @@ cd "$API_ROOT"
 
 ASPNETCORE_ENVIRONMENT=Development \
 dotnet run \
-  --project src/OperationsCenter.Api \
+  --project src/OperationsCenter/OperationsCenter.Api \
   -- --seed
 
 echo "Development seed completed."

@@ -1,17 +1,17 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/OperationsCenter.Api/OperationsCenter.Api.csproj" />
-    <Project Path="src/OperationsCenter.Application/OperationsCenter.Application.csproj" />
-    <Project Path="src/OperationsCenter.Contracts/OperationsCenter.Contracts.csproj" />
-    <Project Path="src/OperationsCenter.Domain/OperationsCenter.Domain.csproj" />
-    <Project Path="src/OperationsCenter.Infrastructure/OperationsCenter.Infrastructure.csproj" />
+    <Project Path="src/OperationsCenter/OperationsCenter.Api/OperationsCenter.Api.csproj" />
+    <Project Path="src/OperationsCenter/OperationsCenter.Application/OperationsCenter.Application.csproj" />
+    <Project Path="src/OperationsCenter/OperationsCenter.Contracts/OperationsCenter.Contracts.csproj" />
+    <Project Path="src/OperationsCenter/OperationsCenter.Domain/OperationsCenter.Domain.csproj" />
+    <Project Path="src/OperationsCenter/OperationsCenter.Infrastructure/OperationsCenter.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
     <Project Path="src/BuildingBlocks/BuildingBlocks.Cqrs.Abstractions/BuildingBlocks.Cqrs.Abstractions.csproj" />
     <Project Path="src/BuildingBlocks/BuildingBlocks.Cqrs/BuildingBlocks.Cqrs.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/OperationsCenter.IntegrationTests/OperationsCenter.IntegrationTests.csproj" />
-    <Project Path="tests/OperationsCenter.UnitTests/OperationsCenter.UnitTests.csproj" />
+    <Project Path="tests/OperationsCenter/OperationsCenter.IntegrationTests/OperationsCenter.IntegrationTests.csproj" />
+    <Project Path="tests/OperationsCenter/OperationsCenter.UnitTests/OperationsCenter.UnitTests.csproj" />
   </Folder>
 </Solution>

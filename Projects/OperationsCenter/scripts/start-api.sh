@@ -14,7 +14,7 @@ done
 cd apps/api/operations-center
 
 dotnet ef database update \
-  --project src/OperationsCenter.Infrastructure \
-  --startup-project src/OperationsCenter.Api
+  --project src/OperationsCenter/OperationsCenter.Infrastructure \
+  --startup-project src/OperationsCenter/OperationsCenter.Api
 
-dotnet run --project src/OperationsCenter.Api
+dotnet run --project src/OperationsCenter/OperationsCenter.Api

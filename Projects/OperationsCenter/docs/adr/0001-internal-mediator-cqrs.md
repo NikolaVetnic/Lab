@@ -21,6 +21,14 @@ Implement an in-process internal mediator as reusable building blocks under:
 - `apps/api/operations-center/src/BuildingBlocks/BuildingBlocks.Cqrs`
 - `apps/api/operations-center/src/BuildingBlocks/BuildingBlocks.Cqrs.Abstractions`
 
+Keep the application projects grouped separately under:
+
+- `apps/api/operations-center/src/OperationsCenter/`
+
+Keep the test projects grouped under:
+
+- `apps/api/operations-center/tests/OperationsCenter/`
+
 Chosen package and namespace split:
 
 - `BuildingBlocks.Cqrs.Abstractions`
