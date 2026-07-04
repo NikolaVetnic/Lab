@@ -192,6 +192,10 @@ Disse filene skal leses før større endringer gjøres i prosjektet.
 
 Viktige og langvarige tekniske beslutninger dokumenteres som Architecture Decision Records i: `docs/adr/`
 
+Første dokumenterte ADR:
+
+- `0001-internal-mediator-cqrs.md` beskriver intern CQRS mediator-implementasjon uten ekstern MediatR-avhengighet.
+
 ## Status
 
 Under aktiv utvikling.

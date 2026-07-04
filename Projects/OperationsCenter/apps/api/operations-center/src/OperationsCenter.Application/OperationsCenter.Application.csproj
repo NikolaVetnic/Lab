@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="BuildingBlocks.Cqrs.Abstractions" Version="0.1.0" />
+    <PackageReference Include="BuildingBlocks.Cqrs" Version="0.1.0" />
     <PackageReference Include="Scrutor" Version="6.0.1" />
     <ProjectReference Include="..\OperationsCenter.Domain\OperationsCenter.Domain.csproj" />
     <ProjectReference Include="..\OperationsCenter.Contracts\OperationsCenter.Contracts.csproj" />
