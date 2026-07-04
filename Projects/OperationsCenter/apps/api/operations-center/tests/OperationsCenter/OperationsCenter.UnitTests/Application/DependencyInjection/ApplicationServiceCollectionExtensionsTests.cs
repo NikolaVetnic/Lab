@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using BuildingBlocks.Cqrs.Abstractions;
 using OperationsCenter.Application.DependencyInjection;
-using OperationsCenter.Application.Incidents.UseCases;
 using OperationsCenter.Application.Persistence;
 using OperationsCenter.Domain.Incidents;
 using System.Collections.Concurrent;
@@ -10,22 +9,6 @@ namespace OperationsCenter.UnitTests.Application.DependencyInjection;
 
 public sealed class ApplicationServiceCollectionExtensionsTests
 {
-    [Fact]
-    public void AddApplicationServices_WhenCalled_RegistersUseCaseAsSelf()
-    {
-        var services = new ServiceCollection();
-        services.AddSingleton<IOperationsCenterDbContext, FakeOperationsCenterDbContext>();
-
-        services.AddApplicationServices();
-
-        using var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-
-        var resolvedUseCase = scope.ServiceProvider.GetService<CreateIncidentUseCase>();
-
-        Assert.NotNull(resolvedUseCase);
-    }
-
     [Fact]
     public void AddApplicationServices_WhenCalled_RegistersMediator()
     {

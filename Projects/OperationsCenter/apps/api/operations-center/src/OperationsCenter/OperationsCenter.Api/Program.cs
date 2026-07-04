@@ -1,10 +1,10 @@
 using OperationsCenter.Api.Configuration;
-using OperationsCenter.Api.Endpoints;
 using OperationsCenter.Application.DependencyInjection;
 using OperationsCenter.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddApiDocumentation();
 builder.Services.AddApplicationServices();
@@ -20,7 +20,7 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseApiDocumentation();
 
-app.MapApiEndpoints();
+app.MapControllers();
 
 app.Run();
 

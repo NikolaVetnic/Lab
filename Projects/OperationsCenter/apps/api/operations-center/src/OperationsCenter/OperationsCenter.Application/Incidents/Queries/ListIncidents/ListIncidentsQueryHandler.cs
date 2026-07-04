@@ -1,14 +1,15 @@
+using BuildingBlocks.Cqrs.Abstractions;
 using OperationsCenter.Application.Incidents.Contracts;
 using OperationsCenter.Application.Persistence;
-using OperationsCenter.Application.Common;
 
-namespace OperationsCenter.Application.Incidents.UseCases;
+namespace OperationsCenter.Application.Incidents.Queries.ListIncidents;
 
-public sealed class ListIncidentsUseCase(IOperationsCenterDbContext dbContext) : IUseCase
+public sealed class ListIncidentsQueryHandler(IOperationsCenterDbContext dbContext)
+    : IQueryHandler<ListIncidentsQuery, IReadOnlyList<IncidentResponse>>
 {
     private readonly IOperationsCenterDbContext _dbContext = dbContext;
 
-    public async Task<IReadOnlyList<IncidentResponse>> ExecuteAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<IncidentResponse>> Handle(ListIncidentsQuery request, CancellationToken cancellationToken)
     {
         var incidents = await _dbContext.ListIncidentsAsync(cancellationToken);
 
