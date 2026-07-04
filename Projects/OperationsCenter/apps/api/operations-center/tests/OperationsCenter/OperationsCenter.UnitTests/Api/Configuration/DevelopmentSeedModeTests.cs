@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using OperationsCenter.Api.Configuration;
+using OperationsCenter.Infrastructure.Development;
 
 namespace OperationsCenter.UnitTests.Api.Configuration;
 
@@ -27,6 +28,22 @@ public sealed class DevelopmentSeedModeTests
         var requested = DevelopmentSeedMode.IsSeedRequested(["--seed"]);
 
         Assert.True(requested);
+    }
+
+    [Fact]
+    public void ResolveRequestedProfile_WhenDemoArgumentIsProvided_ReturnsDemoProfile()
+    {
+        var profile = DevelopmentSeedMode.ResolveRequestedProfile(["--seed=demo"]);
+
+        Assert.Equal(DevelopmentSeedProfile.Demo, profile);
+    }
+
+    [Fact]
+    public void ResolveRequestedProfile_WhenSeedArgumentIsProvided_ReturnsStandardProfile()
+    {
+        var profile = DevelopmentSeedMode.ResolveRequestedProfile(["--seed"]);
+
+        Assert.Equal(DevelopmentSeedProfile.Standard, profile);
     }
 
     private sealed class StubHostEnvironment : IHostEnvironment

@@ -8,7 +8,8 @@ public static class DevelopmentSeedModeExtensions
 {
     public static async Task<bool> TryRunDevelopmentSeedAsync(this WebApplicationBuilder builder, string[] args)
     {
-        if (!DevelopmentSeedMode.IsSeedRequested(args))
+        var seedProfile = DevelopmentSeedMode.ResolveRequestedProfile(args);
+        if (!seedProfile.HasValue)
         {
             return false;
         }
@@ -28,9 +29,9 @@ public static class DevelopmentSeedModeExtensions
         var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentDataSeeder>();
 
         await dbContext.Database.MigrateAsync();
-        var insertedCount = await seeder.SeedAsync();
+        var insertedCount = await seeder.SeedAsync(seedProfile.Value);
 
-        Console.WriteLine($"Development seed completed successfully. Added {insertedCount} incidents.");
+        Console.WriteLine($"Development seed ({seedProfile.Value}) completed successfully. Added {insertedCount} incidents.");
         return true;
     }
 }

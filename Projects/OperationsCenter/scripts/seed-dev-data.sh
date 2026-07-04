@@ -7,6 +7,11 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_ROOT="$REPO_ROOT/apps/api/operations-center"
+SEED_ARG="--seed"
+
+if [[ "${1:-}" == "--demo" ]]; then
+  SEED_ARG="--seed=demo"
+fi
 
 cd "$REPO_ROOT"
 
@@ -21,13 +26,13 @@ until docker compose exec -T operations-center-postgres \
 done
 
 echo "PostgreSQL is ready."
-echo "Seeding development data..."
+echo "Seeding development data using '$SEED_ARG'..."
 
 cd "$API_ROOT"
 
 ASPNETCORE_ENVIRONMENT=Development \
 dotnet run \
   --project src/OperationsCenter/OperationsCenter.Api \
-  -- --seed
+  -- "$SEED_ARG"
 
 echo "Development seed completed."

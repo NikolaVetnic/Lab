@@ -1,0 +1,42 @@
+[
+  {
+    "title": "Regional API latency spike under peak checkout load",
+    "description": "Synthetic probes and customer traffic reported p95 latency above SLA in EU West.",
+    "severity": "Critical",
+    "status": "Closed",
+    "statusTimeline": ["InProgress", "Resolved", "InProgress", "Resolved", "Closed"],
+    "createdAtUtc": "2026-07-01T08:30:00+00:00"
+  },
+  {
+    "title": "Delayed payment provider callback processing",
+    "description": "Callback queue lag increased after deploy and required rollback plus replay.",
+    "severity": "High",
+    "status": "Resolved",
+    "statusTimeline": ["InProgress", "Resolved"],
+    "createdAtUtc": "2026-07-01T10:05:00+00:00"
+  },
+  {
+    "title": "Search shard imbalance after index compaction",
+    "description": "Read replicas showed uneven segment placement leading to bursty query times.",
+    "severity": "Medium",
+    "status": "InProgress",
+    "statusTimeline": ["InProgress"],
+    "createdAtUtc": "2026-07-02T06:50:00+00:00"
+  },
+  {
+    "title": "Notification retry storm following SMTP throttling",
+    "description": "Bulk notification retries saturated worker concurrency until backoff policy tuned.",
+    "severity": "High",
+    "status": "Closed",
+    "statusTimeline": ["InProgress", "Resolved", "Closed"],
+    "createdAtUtc": "2026-07-02T13:15:00+00:00"
+  },
+  {
+    "title": "Cache eviction regression on product detail endpoints",
+    "description": "Unexpected cache churn triggered repeated DB misses during a flash sale window.",
+    "severity": "Medium",
+    "status": "Resolved",
+    "statusTimeline": ["Resolved"],
+    "createdAtUtc": "2026-07-03T09:45:00+00:00"
+  }
+]

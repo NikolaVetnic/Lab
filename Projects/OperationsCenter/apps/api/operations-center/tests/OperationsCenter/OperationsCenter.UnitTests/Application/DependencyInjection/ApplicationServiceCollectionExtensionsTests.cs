@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using BuildingBlocks.Cqrs.Abstractions;
 using OperationsCenter.Application.DependencyInjection;
 using OperationsCenter.Application.Persistence;
+using OperationsCenter.Domain.Audit;
 using OperationsCenter.Domain.Incidents;
 using System.Collections.Concurrent;
 
@@ -91,6 +92,11 @@ public sealed class ApplicationServiceCollectionExtensionsTests
             return Task.CompletedTask;
         }
 
+        public Task AddAuditEventAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task<Incident?> GetIncidentByIdAsync(Guid incidentId, CancellationToken cancellationToken)
         {
             return Task.FromResult<Incident?>(null);
@@ -104,6 +110,15 @@ public sealed class ApplicationServiceCollectionExtensionsTests
         public Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult<IReadOnlyList<Incident>>(Array.Empty<Incident>());
+        }
+
+        public Task<IReadOnlyList<AuditEvent>> ListAuditEventsAsync(
+            string? entityType,
+            Guid? entityId,
+            string? action,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<AuditEvent>>(Array.Empty<AuditEvent>());
         }
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)

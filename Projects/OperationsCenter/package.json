@@ -4,6 +4,8 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "bom:fix": "./scripts/remove-bom.sh",
+    "bom:check": "./scripts/remove-bom.sh --check",
     "lint:markdown": "markdownlint-cli2",
     "lint:dotnet": "dotnet format apps/api/OperationsCenter.sln --verify-no-changes",
     "lint": "npm run format:check && npm run lint:markdown && npm run lint:dotnet"

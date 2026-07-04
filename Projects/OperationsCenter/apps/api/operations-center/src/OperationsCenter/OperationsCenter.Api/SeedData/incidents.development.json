@@ -10,7 +10,7 @@
     "title": "Nightly billing export completed with missing records",
     "description": "Reconciliation found 17 tenants missing from export batch OC-BILL-2026-06-30.",
     "severity": "Critical",
-    "status": "Open",
+    "status": "Resolved",
     "createdAtUtc": "2026-06-30T06:30:00+00:00"
   },
   {
@@ -31,7 +31,7 @@
     "title": "Object storage read timeout on attachment preview",
     "description": "Attachment previews intermittently timeout when reading larger PDF files.",
     "severity": "High",
-    "status": "Open",
+    "status": "InProgress",
     "createdAtUtc": "2026-06-28T16:02:00+00:00"
   },
   {

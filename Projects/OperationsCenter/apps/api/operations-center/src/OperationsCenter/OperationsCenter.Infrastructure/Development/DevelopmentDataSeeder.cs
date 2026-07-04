@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using OperationsCenter.Domain.Audit;
 using OperationsCenter.Domain.Incidents;
 using OperationsCenter.Infrastructure.Persistence;
 using System.Text.Json;
@@ -8,7 +9,8 @@ namespace OperationsCenter.Infrastructure.Development;
 
 public sealed class DevelopmentDataSeeder
 {
-    private const string SeedDataRelativePath = "SeedData/incidents.development.json";
+    private const string StandardSeedDataRelativePath = "SeedData/incidents.development.json";
+    private const string DemoSeedDataRelativePath = "SeedData/incidents.demo.json";
 
     private static readonly JsonSerializerOptions SeedJsonOptions = new()
     {
@@ -20,23 +22,31 @@ public sealed class DevelopmentDataSeeder
     };
 
     private readonly OperationsCenterDbContext _dbContext;
-    private readonly string _seedDataFilePath;
+    private readonly string? _seedDataFilePathOverride;
 
     public DevelopmentDataSeeder(OperationsCenterDbContext dbContext)
-        : this(dbContext, Path.Combine(AppContext.BaseDirectory, SeedDataRelativePath))
     {
+        _dbContext = dbContext;
+        _seedDataFilePathOverride = null;
     }
 
     public DevelopmentDataSeeder(OperationsCenterDbContext dbContext, string seedDataFilePath)
     {
         _dbContext = dbContext;
-        _seedDataFilePath = seedDataFilePath;
+        _seedDataFilePathOverride = seedDataFilePath;
     }
 
     public async Task<int> SeedAsync(CancellationToken cancellationToken = default)
     {
-        var seedItems = await LoadSeedItemsAsync(cancellationToken);
+        return await SeedAsync(DevelopmentSeedProfile.Standard, cancellationToken);
+    }
+
+    public async Task<int> SeedAsync(DevelopmentSeedProfile profile, CancellationToken cancellationToken = default)
+    {
+        var seedItems = await LoadSeedItemsAsync(profile, cancellationToken);
         var seedTitles = seedItems.Select(item => item.Title).ToArray();
+        var seedSource = GetSeedSource(profile);
+        var seedActor = GetSeedActor(profile);
 
         var existingTitles = await _dbContext.Incidents
             .AsNoTracking()
@@ -55,9 +65,43 @@ public sealed class DevelopmentDataSeeder
             }
 
             var incident = Incident.Create(item.Title, item.Description, item.Severity, item.CreatedAtUtc);
-            ApplyStatus(incident, item.Status);
-
             await _dbContext.AddIncidentAsync(incident, cancellationToken);
+            await _dbContext.AddAuditEventAsync(
+                AuditEvent.Create(
+                    entityType: "Incident",
+                    entityId: incident.Id,
+                    action: "Created",
+                    occurredAt: incident.CreatedAt,
+                    actorId: seedActor,
+                    metadataJson: JsonSerializer.Serialize(new
+                    {
+                        source = seedSource
+                    })),
+                cancellationToken);
+
+            IReadOnlyList<StatusTransition> transitions = ApplyStatusAndCollectTransitions(incident, item);
+
+            for (var index = 0; index < transitions.Count; index++)
+            {
+                StatusTransition transition = transitions[index];
+                var metadata = JsonSerializer.Serialize(new
+                {
+                    oldStatus = transition.From.ToString(),
+                    newStatus = transition.To.ToString(),
+                    source = seedSource
+                });
+
+                await _dbContext.AddAuditEventAsync(
+                    AuditEvent.Create(
+                        entityType: "Incident",
+                        entityId: incident.Id,
+                        action: "StatusChanged",
+                        occurredAt: incident.CreatedAt.AddMinutes(index + 1),
+                        actorId: seedActor,
+                        metadataJson: metadata),
+                    cancellationToken);
+            }
+
             insertedCount++;
         }
 
@@ -69,14 +113,16 @@ public sealed class DevelopmentDataSeeder
         return insertedCount;
     }
 
-    private async Task<IReadOnlyList<SeedIncident>> LoadSeedItemsAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<SeedIncident>> LoadSeedItemsAsync(DevelopmentSeedProfile profile, CancellationToken cancellationToken)
     {
-        if (!File.Exists(_seedDataFilePath))
+        var seedDataFilePath = ResolveSeedDataFilePath(profile);
+
+        if (!File.Exists(seedDataFilePath))
         {
-            throw new FileNotFoundException("Seed data file was not found.", _seedDataFilePath);
+            throw new FileNotFoundException("Seed data file was not found.", seedDataFilePath);
         }
 
-        await using var stream = File.OpenRead(_seedDataFilePath);
+        await using var stream = File.OpenRead(seedDataFilePath);
         var seedItems = await JsonSerializer.DeserializeAsync<IReadOnlyList<SeedIncident>>(
             stream,
             SeedJsonOptions,
@@ -90,40 +136,141 @@ public sealed class DevelopmentDataSeeder
         return seedItems;
     }
 
-    private static void ApplyStatus(Incident incident, IncidentStatus targetStatus)
+    private string ResolveSeedDataFilePath(DevelopmentSeedProfile profile)
     {
-        switch (targetStatus)
+        if (_seedDataFilePathOverride is not null)
         {
-            case IncidentStatus.Open:
-                return;
-            case IncidentStatus.InProgress:
-                EnsureTransition(incident, IncidentStatus.InProgress);
-                return;
-            case IncidentStatus.Resolved:
-                EnsureTransition(incident, IncidentStatus.Resolved);
-                return;
-            case IncidentStatus.Closed:
-                EnsureTransition(incident, IncidentStatus.Resolved);
-                EnsureTransition(incident, IncidentStatus.Closed);
-                return;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(targetStatus), targetStatus, "Unsupported seed incident status.");
+            return _seedDataFilePathOverride;
+        }
+
+        var relativePath = profile == DevelopmentSeedProfile.Demo
+            ? DemoSeedDataRelativePath
+            : StandardSeedDataRelativePath;
+
+        return Path.Combine(AppContext.BaseDirectory, relativePath);
+    }
+
+    private static string GetSeedSource(DevelopmentSeedProfile profile)
+    {
+        return profile == DevelopmentSeedProfile.Demo
+            ? "development-seed-demo"
+            : "development-seed";
+    }
+
+    private static string GetSeedActor(DevelopmentSeedProfile profile)
+    {
+        return profile == DevelopmentSeedProfile.Demo
+            ? "system:dev-seed:demo"
+            : "system:dev-seed";
+    }
+
+    private static IReadOnlyList<StatusTransition> ApplyStatusAndCollectTransitions(Incident incident, SeedIncident item)
+    {
+        var transitions = new List<StatusTransition>();
+        IncidentStatus[] targets = ResolveStatusTargets(item);
+
+        foreach (IncidentStatus targetStatus in targets)
+        {
+            EnsureReachedStatus(incident, targetStatus, transitions);
+        }
+
+        return transitions;
+    }
+
+    private static IncidentStatus[] ResolveStatusTargets(SeedIncident item)
+    {
+        if (item.StatusTimeline is { Length: > 0 })
+        {
+            return item.StatusTimeline;
+        }
+
+        return [item.Status];
+    }
+
+    private static void EnsureReachedStatus(Incident incident, IncidentStatus targetStatus, ICollection<StatusTransition> transitions)
+    {
+        while (incident.Status != targetStatus)
+        {
+            IncidentStatus nextStatus = ResolveNextStep(incident.Status, targetStatus);
+            EnsureTransition(incident, nextStatus, transitions);
         }
     }
 
-    private static void EnsureTransition(Incident incident, IncidentStatus targetStatus)
+    private static IncidentStatus ResolveNextStep(IncidentStatus currentStatus, IncidentStatus targetStatus)
     {
+        if (currentStatus == IncidentStatus.Closed)
+        {
+            throw new InvalidOperationException("Closed incidents cannot be transitioned by seed data.");
+        }
+
+        switch (targetStatus)
+        {
+            case IncidentStatus.Open:
+                throw new InvalidOperationException("Seed data does not support transitioning back to Open.");
+            case IncidentStatus.InProgress:
+                if (currentStatus == IncidentStatus.Open || currentStatus == IncidentStatus.Resolved)
+                {
+                    return IncidentStatus.InProgress;
+                }
+
+                break;
+            case IncidentStatus.Resolved:
+                if (currentStatus == IncidentStatus.Open)
+                {
+                    return IncidentStatus.InProgress;
+                }
+
+                if (currentStatus == IncidentStatus.InProgress)
+                {
+                    return IncidentStatus.Resolved;
+                }
+
+                break;
+            case IncidentStatus.Closed:
+                if (currentStatus == IncidentStatus.Open)
+                {
+                    return IncidentStatus.InProgress;
+                }
+
+                if (currentStatus == IncidentStatus.InProgress)
+                {
+                    return IncidentStatus.Resolved;
+                }
+
+                if (currentStatus == IncidentStatus.Resolved)
+                {
+                    return IncidentStatus.Closed;
+                }
+
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(targetStatus), targetStatus, "Unsupported seed incident status.");
+        }
+
+        throw new InvalidOperationException(
+            $"Unable to compute transition from '{currentStatus}' to '{targetStatus}'.");
+    }
+
+    private static void EnsureTransition(Incident incident, IncidentStatus targetStatus, ICollection<StatusTransition> transitions)
+    {
+        IncidentStatus previousStatus = incident.Status;
+
         if (!incident.TryUpdateStatus(targetStatus))
         {
             throw new InvalidOperationException(
                 $"Unable to transition incident '{incident.Title}' to '{targetStatus}'.");
         }
+
+        transitions.Add(new StatusTransition(previousStatus, incident.Status));
     }
+
+    private sealed record StatusTransition(IncidentStatus From, IncidentStatus To);
 
     private sealed record SeedIncident(
         string Title,
         string Description,
         IncidentSeverity Severity,
         IncidentStatus Status,
+        IncidentStatus[]? StatusTimeline,
         DateTimeOffset CreatedAtUtc);
 }
