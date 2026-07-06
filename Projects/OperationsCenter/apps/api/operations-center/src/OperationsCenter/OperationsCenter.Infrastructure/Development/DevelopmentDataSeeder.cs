@@ -53,7 +53,8 @@ public sealed class DevelopmentDataSeeder
         var seedItems = await LoadSeedItemsAsync(profile, cancellationToken);
         var seedTitles = seedItems.Select(item => item.Title).ToArray();
         var seedSource = GetSeedSource(profile);
-        var seedActor = GetSeedActor(profile);
+        var seedActorUserId = await GetSeedActorUserIdAsync(profile, cancellationToken);
+        var seedActor = seedActorUserId.ToString("D");
 
         var existingTitles = await _dbContext.Incidents
             .AsNoTracking()
@@ -71,7 +72,7 @@ public sealed class DevelopmentDataSeeder
                 continue;
             }
 
-            var incident = Incident.Create(item.Title, item.Description, item.Severity, item.CreatedAtUtc);
+            var incident = Incident.Create(item.Title, item.Description, item.Severity, seedActorUserId, item.CreatedAtUtc);
             await _dbContext.AddIncidentAsync(incident, cancellationToken);
             await _dbContext.AddAuditEventAsync(
                 AuditEvent.Create(
@@ -184,11 +185,17 @@ public sealed class DevelopmentDataSeeder
             : "development-seed";
     }
 
-    private static string GetSeedActor(DevelopmentSeedProfile profile)
+    private async Task<Guid> GetSeedActorUserIdAsync(DevelopmentSeedProfile profile, CancellationToken cancellationToken)
     {
-        return profile == DevelopmentSeedProfile.Demo
-            ? "system:dev-seed:demo"
-            : "system:dev-seed";
+        var users = GetSeedUsers(profile);
+        var seedActorEmail = users[0].Email;
+        var seedActor = await _dbContext.GetUserByEmailAsync(seedActorEmail, cancellationToken);
+        if (seedActor is null)
+        {
+            throw new InvalidOperationException("Seed actor user was not found.");
+        }
+
+        return seedActor.Id;
     }
 
     private static IReadOnlyList<SeedUser> GetSeedUsers(DevelopmentSeedProfile profile)

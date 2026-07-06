@@ -38,11 +38,31 @@ public sealed class OperationsCenterDbContext(DbContextOptions<OperationsCenterD
             .FirstOrDefaultAsync(incident => incident.Id == incidentId, cancellationToken);
     }
 
+    public Task<bool> IncidentExistsAsync(Guid incidentId, CancellationToken cancellationToken)
+    {
+        return Incidents
+            .AsNoTracking()
+            .AnyAsync(incident => incident.Id == incidentId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken)
     {
         return await Incidents
             .AsNoTracking()
             .OrderByDescending(incident => incident.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AuditEvent>> ListIncidentAuditEventsAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        return await AuditEvents
+            .AsNoTracking()
+            .Where(auditEvent => auditEvent.EntityType == "Incident" && auditEvent.EntityId == incidentId)
+            .OrderBy(auditEvent => auditEvent.OccurredAt)
+            .ThenBy(auditEvent => auditEvent.Id)
+            .Take(200)
             .ToListAsync(cancellationToken);
     }
 

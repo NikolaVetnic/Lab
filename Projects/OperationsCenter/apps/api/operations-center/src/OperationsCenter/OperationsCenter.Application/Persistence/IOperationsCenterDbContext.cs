@@ -14,7 +14,13 @@ public interface IOperationsCenterDbContext
 
     Task<Incident?> GetIncidentByIdForUpdateAsync(Guid incidentId, CancellationToken cancellationToken);
 
+    Task<bool> IncidentExistsAsync(Guid incidentId, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AuditEvent>> ListIncidentAuditEventsAsync(
+        Guid incidentId,
+        CancellationToken cancellationToken);
 
     Task<IReadOnlyList<AuditEvent>> ListAuditEventsAsync(
         string? entityType,

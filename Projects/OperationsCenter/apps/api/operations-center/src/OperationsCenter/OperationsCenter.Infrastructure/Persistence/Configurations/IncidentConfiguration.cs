@@ -33,6 +33,9 @@ public sealed class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(incident => incident.CreatedAt)
             .IsRequired();
 
+        builder.Property(incident => incident.CreatedByUserId)
+            .IsRequired();
+
         builder.HasIndex(incident => incident.CreatedAt);
     }
 }

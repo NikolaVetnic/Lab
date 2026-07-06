@@ -15,7 +15,13 @@ public sealed class Incident
     {
     }
 
-    private Incident(Guid id, string title, string? description, IncidentSeverity severity, DateTimeOffset createdAt)
+    private Incident(
+        Guid id,
+        string title,
+        string? description,
+        IncidentSeverity severity,
+        DateTimeOffset createdAt,
+        Guid createdByUserId)
     {
         Id = id;
         Title = title;
@@ -23,6 +29,7 @@ public sealed class Incident
         Severity = severity;
         Status = IncidentStatus.Open;
         CreatedAt = createdAt;
+        CreatedByUserId = createdByUserId;
     }
 
     public Guid Id { get; private set; }
@@ -37,7 +44,14 @@ public sealed class Incident
 
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public static Incident Create(string title, string? description, IncidentSeverity severity, DateTimeOffset? createdAt = null)
+    public Guid CreatedByUserId { get; private set; }
+
+    public static Incident Create(
+        string title,
+        string? description,
+        IncidentSeverity severity,
+        Guid createdByUserId,
+        DateTimeOffset? createdAt = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -54,9 +68,14 @@ public sealed class Incident
             throw new ArgumentException("Description must not exceed 4000 characters.", nameof(description));
         }
 
+        if (createdByUserId == Guid.Empty)
+        {
+            throw new ArgumentException("CreatedByUserId is required.", nameof(createdByUserId));
+        }
+
         var normalizedCreatedAt = (createdAt ?? DateTimeOffset.UtcNow).ToUniversalTime();
 
-        return new Incident(Guid.NewGuid(), title, description, severity, normalizedCreatedAt);
+        return new Incident(Guid.NewGuid(), title, description, severity, normalizedCreatedAt, createdByUserId);
     }
 
     public bool TryUpdateStatus(IncidentStatus nextStatus)

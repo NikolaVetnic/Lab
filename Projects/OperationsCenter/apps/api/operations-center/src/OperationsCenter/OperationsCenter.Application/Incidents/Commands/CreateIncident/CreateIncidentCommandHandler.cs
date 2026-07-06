@@ -13,12 +13,12 @@ public sealed class CreateIncidentCommandHandler(IOperationsCenterDbContext dbCo
 
     public async Task<IncidentResponse> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
     {
-        Incident incident = Incident.Create(request.Title, request.Description, request.Severity);
+        Incident incident = Incident.Create(request.Title, request.Description, request.Severity, request.ActorUserId);
         AuditEvent auditEvent = AuditEvent.Create(
             entityType: "Incident",
             entityId: incident.Id,
             action: "Created",
-            actorId: request.ActorId);
+            actorId: request.ActorUserId.ToString("D"));
 
         await _dbContext.AddIncidentAsync(incident, cancellationToken);
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);

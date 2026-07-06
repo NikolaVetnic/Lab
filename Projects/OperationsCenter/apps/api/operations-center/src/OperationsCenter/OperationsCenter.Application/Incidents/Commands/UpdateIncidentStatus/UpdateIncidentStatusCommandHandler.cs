@@ -36,7 +36,7 @@ public sealed class UpdateIncidentStatusCommandHandler(IOperationsCenterDbContex
             entityType: "Incident",
             entityId: incident.Id,
             action: "StatusChanged",
-            actorId: request.ActorId,
+            actorId: request.ActorUserId.ToString("D"),
             metadataJson: metadataJson);
 
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);

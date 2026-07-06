@@ -2,8 +2,10 @@ using BuildingBlocks.Cqrs.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OperationsCenter.Application.Identity.Abstractions;
+using OperationsCenter.Application.Audits.Contracts;
 using OperationsCenter.Application.Incidents.Commands.CreateIncident;
 using OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
+using OperationsCenter.Application.Incidents.Queries.GetIncidentAudit;
 using OperationsCenter.Application.Incidents.Queries.GetIncidentById;
 using OperationsCenter.Application.Incidents.Queries.ListIncidents;
 using OperationsCenter.Application.Incidents.Contracts;
@@ -63,6 +65,16 @@ public sealed class IncidentsController(
         [FromBody] UpdateIncidentStatusRequest request,
         CancellationToken cancellationToken)
     {
+        if (!TryResolveCurrentUserId(out var currentUserId))
+        {
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Authentication context is invalid.",
+                Detail = "Authenticated user identifier is required.",
+                Status = StatusCodes.Status401Unauthorized
+            });
+        }
+
         if (!Enum.IsDefined(typeof(IncidentStatus), request.Status))
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -71,7 +83,7 @@ public sealed class IncidentsController(
             }));
         }
 
-        var command = new UpdateIncidentStatusCommand(id, request.Status, ResolveActorId());
+        var command = new UpdateIncidentStatusCommand(id, request.Status, currentUserId);
         UpdateIncidentStatusResult result = await sender.Send(command, cancellationToken);
 
         if (result.Outcome is UpdateIncidentStatusOutcome.NotFound)
@@ -106,17 +118,28 @@ public sealed class IncidentsController(
     [Authorize(Policy = "Incidents.Write")]
     [ProducesResponseType<IncidentResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IncidentResponse>> CreateIncidentAsync(
         [FromBody] CreateIncidentRequest request,
         CancellationToken cancellationToken)
     {
+        if (!TryResolveCurrentUserId(out var currentUserId))
+        {
+            return Unauthorized(new ProblemDetails
+            {
+                Title = "Authentication context is invalid.",
+                Detail = "Authenticated user identifier is required.",
+                Status = StatusCodes.Status401Unauthorized
+            });
+        }
+
         Dictionary<string, string[]> validationErrors = ValidateCreateRequest(request);
         if (validationErrors.Count > 0)
         {
             return BadRequest(new ValidationProblemDetails(validationErrors));
         }
 
-        var command = new CreateIncidentCommand(request.Title!, request.Description, request.Severity, ResolveActorId());
+        var command = new CreateIncidentCommand(request.Title!, request.Description, request.Severity, currentUserId);
         IncidentResponse createdIncident = await sender.Send(command, cancellationToken);
 
         logger.LogInformation(
@@ -128,6 +151,30 @@ public sealed class IncidentsController(
             GetIncidentByIdRouteName,
             new { id = createdIncident.Id },
             createdIncident);
+    }
+
+    [HttpGet("{id:guid}/audit")]
+    [Authorize(Policy = "Incidents.Read")]
+    [ProducesResponseType<IReadOnlyList<AuditEventResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<AuditEventResponse>>> GetIncidentAuditAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetIncidentAuditQuery(id);
+        GetIncidentAuditResult result = await sender.Send(query, cancellationToken);
+
+        if (result.Outcome is GetIncidentAuditOutcome.NotFound)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Incident not found.",
+                Detail = $"Incident with id '{id}' does not exist.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        return Ok(result.Events);
     }
 
     private static Dictionary<string, string[]> ValidateCreateRequest(CreateIncidentRequest request)
@@ -156,13 +203,9 @@ public sealed class IncidentsController(
         return errors;
     }
 
-    private string? ResolveActorId()
+    private bool TryResolveCurrentUserId(out Guid userId)
     {
-        if (currentUser.UserId.HasValue)
-        {
-            return currentUser.UserId.Value.ToString();
-        }
-
-        return currentUser.Email;
+        userId = currentUser.UserId ?? Guid.Empty;
+        return userId != Guid.Empty;
     }
 }

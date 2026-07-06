@@ -45,11 +45,42 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
     }
 
     [Fact]
-    public async Task CreateIncident_WhenRequestIsValid_WritesCreatedAuditEvent()
+    public async Task CreateIncident_WhenRequestIsValid_StoresAuthenticatedUserIdAsOwner()
     {
+        var email = $"operator-{Guid.NewGuid()}@operations-center.local";
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
             factory,
-            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            email: email,
+            password: "Operator123!",
+            role: SystemRole.Operator);
+
+        var created = await CreateIncidentAsync(client, $"Owner check {Guid.NewGuid()}");
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<OperationsCenterDbContext>();
+
+        var userId = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Email == email)
+            .Select(user => user.Id)
+            .SingleAsync();
+
+        var ownerId = await dbContext.Incidents
+            .AsNoTracking()
+            .Where(incident => incident.Id == created.Id)
+            .Select(incident => incident.CreatedByUserId)
+            .SingleAsync();
+
+        Assert.Equal(userId, ownerId);
+    }
+
+    [Fact]
+    public async Task CreateIncident_WhenRequestIsValid_WritesCreatedAuditEvent()
+    {
+        var email = $"operator-{Guid.NewGuid()}@operations-center.local";
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            factory,
+            email: email,
             password: "Operator123!",
             role: SystemRole.Operator);
 
@@ -70,6 +101,12 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<OperationsCenterDbContext>();
 
+        var userId = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Email == email)
+            .Select(user => user.Id)
+            .SingleAsync();
+
         AuditEvent? auditEvent = await dbContext.AuditEvents
             .AsNoTracking()
             .OrderByDescending(audit => audit.OccurredAt)
@@ -79,6 +116,7 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
                 audit.Action == "Created");
 
         Assert.NotNull(auditEvent);
+        Assert.Equal(userId.ToString("D"), auditEvent.ActorId);
         Assert.Null(auditEvent.MetadataJson);
     }
 
@@ -205,9 +243,10 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
     [Fact]
     public async Task UpdateIncidentStatus_WhenTransitionIsValid_WritesStatusChangedAuditEvent()
     {
+        var email = $"operator-{Guid.NewGuid()}@operations-center.local";
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
             factory,
-            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            email: email,
             password: "Operator123!",
             role: SystemRole.Operator);
 
@@ -222,6 +261,12 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<OperationsCenterDbContext>();
 
+        var userId = await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Email == email)
+            .Select(user => user.Id)
+            .SingleAsync();
+
         AuditEvent? auditEvent = await dbContext.AuditEvents
             .AsNoTracking()
             .OrderByDescending(audit => audit.OccurredAt)
@@ -231,6 +276,7 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
                 audit.Action == "StatusChanged");
 
         Assert.NotNull(auditEvent);
+        Assert.Equal(userId.ToString("D"), auditEvent.ActorId);
         Assert.NotNull(auditEvent.MetadataJson);
 
         using JsonDocument metadata = JsonDocument.Parse(auditEvent.MetadataJson);
@@ -281,7 +327,7 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
     }
 
     [Fact]
-    public async Task GetIncidentAudits_WhenIncidentHasChanges_ReturnsCreatedAndStatusChangedEvents()
+    public async Task GetIncidentAudit_WhenIncidentHasChanges_ReturnsEventsInChronologicalOrder()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
             factory,
@@ -297,16 +343,35 @@ public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory 
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
 
-        var response = await client.GetAsync($"/incidents/{createdIncident.Id}/audits");
+        var response = await client.GetAsync($"/incidents/{createdIncident.Id}/audit");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var audits = await response.Content.ReadFromJsonAsync<List<AuditEventDto>>();
         Assert.NotNull(audits);
         Assert.True(audits.Count >= 2);
-        Assert.Contains(audits, audit => audit.Action == "Created");
-        Assert.Contains(audits, audit => audit.Action == "StatusChanged");
+        Assert.Equal("Created", audits[0].Action);
+        Assert.Equal("StatusChanged", audits[1].Action);
+        Assert.True(audits[0].OccurredAt <= audits[1].OccurredAt);
         Assert.All(audits, audit => Assert.Equal(createdIncident.Id, audit.EntityId));
+    }
+
+    [Fact]
+    public async Task GetIncidentAudit_WhenIncidentDoesNotExist_ReturnsNotFoundProblemDetails()
+    {
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
+
+        var response = await client.GetAsync($"/incidents/{Guid.NewGuid()}/audit");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(payload.RootElement.TryGetProperty("title", out var title));
+        Assert.Equal("Incident not found.", title.GetString());
     }
 
     [Fact]

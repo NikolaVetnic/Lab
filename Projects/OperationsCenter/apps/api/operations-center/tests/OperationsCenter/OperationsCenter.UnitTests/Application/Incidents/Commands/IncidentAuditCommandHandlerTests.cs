@@ -15,8 +15,9 @@ public sealed class IncidentAuditCommandHandlerTests
     {
         var dbContext = new FakeOperationsCenterDbContext();
         var handler = new CreateIncidentCommandHandler(dbContext);
+        var actorUserId = Guid.NewGuid();
 
-        var command = new CreateIncidentCommand("Audit create", "Create audit event", IncidentSeverity.Medium);
+        var command = new CreateIncidentCommand("Audit create", "Create audit event", IncidentSeverity.Medium, actorUserId);
 
         var response = await handler.Handle(command, CancellationToken.None);
 
@@ -25,17 +26,19 @@ public sealed class IncidentAuditCommandHandlerTests
         Assert.Equal(response.Id, auditEvent.EntityId);
         Assert.Equal("Incident", auditEvent.EntityType);
         Assert.Equal("Created", auditEvent.Action);
+        Assert.Equal(actorUserId.ToString("D"), auditEvent.ActorId);
         Assert.Null(auditEvent.MetadataJson);
     }
 
     [Fact]
     public async Task UpdateIncidentStatusCommandHandler_WhenStatusChanges_WritesStatusChangedAuditEvent()
     {
-        var incident = Incident.Create("Audit status", "Status change", IncidentSeverity.High);
+        var incident = Incident.Create("Audit status", "Status change", IncidentSeverity.High, Guid.NewGuid());
         var dbContext = new FakeOperationsCenterDbContext(incident);
         var handler = new UpdateIncidentStatusCommandHandler(dbContext);
+        var actorUserId = Guid.NewGuid();
 
-        var command = new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.InProgress);
+        var command = new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.InProgress, actorUserId);
 
         UpdateIncidentStatusResult result = await handler.Handle(command, CancellationToken.None);
 
@@ -44,6 +47,7 @@ public sealed class IncidentAuditCommandHandlerTests
         Assert.Equal("Incident", auditEvent.EntityType);
         Assert.Equal(incident.Id, auditEvent.EntityId);
         Assert.Equal("StatusChanged", auditEvent.Action);
+        Assert.Equal(actorUserId.ToString("D"), auditEvent.ActorId);
         Assert.NotNull(auditEvent.MetadataJson);
 
         using JsonDocument metadata = JsonDocument.Parse(auditEvent.MetadataJson);
@@ -78,9 +82,19 @@ public sealed class IncidentAuditCommandHandlerTests
             return Task.FromResult(_existingIncident?.Id == incidentId ? _existingIncident : null);
         }
 
+        public Task<bool> IncidentExistsAsync(Guid incidentId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(_existingIncident is not null && _existingIncident.Id == incidentId);
+        }
+
         public Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult<IReadOnlyList<Incident>>([]);
+        }
+
+        public Task<IReadOnlyList<AuditEvent>> ListIncidentAuditEventsAsync(Guid incidentId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<AuditEvent>>([]);
         }
 
         public Task<IReadOnlyList<AuditEvent>> ListAuditEventsAsync(

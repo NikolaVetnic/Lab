@@ -8,4 +8,4 @@ public sealed record CreateIncidentCommand(
     string Title,
     string? Description,
     IncidentSeverity Severity,
-    string? ActorId = null) : ICommand<IncidentResponse>;
+    Guid ActorUserId) : ICommand<IncidentResponse>;

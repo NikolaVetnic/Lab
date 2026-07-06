@@ -60,9 +60,19 @@ public sealed class LoginCommandHandlerTests
             return Task.FromResult<Incident?>(null);
         }
 
+        public Task<bool> IncidentExistsAsync(Guid incidentId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(false);
+        }
+
         public Task<IReadOnlyList<Incident>> ListIncidentsAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult<IReadOnlyList<Incident>>([]);
+        }
+
+        public Task<IReadOnlyList<AuditEvent>> ListIncidentAuditEventsAsync(Guid incidentId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<AuditEvent>>([]);
         }
 
         public Task<IReadOnlyList<AuditEvent>> ListAuditEventsAsync(string? entityType, Guid? entityId, string? action, CancellationToken cancellationToken)

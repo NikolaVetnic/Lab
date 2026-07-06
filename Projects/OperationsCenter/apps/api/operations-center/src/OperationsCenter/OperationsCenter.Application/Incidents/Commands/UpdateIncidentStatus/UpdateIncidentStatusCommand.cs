@@ -4,7 +4,7 @@ using OperationsCenter.Domain.Incidents;
 
 namespace OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
 
-public sealed record UpdateIncidentStatusCommand(Guid IncidentId, IncidentStatus Status, string? ActorId = null)
+public sealed record UpdateIncidentStatusCommand(Guid IncidentId, IncidentStatus Status, Guid ActorUserId)
     : ICommand<UpdateIncidentStatusResult>;
 
 public sealed record UpdateIncidentStatusResult(IncidentResponse? Response, UpdateIncidentStatusOutcome Outcome)

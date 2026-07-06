@@ -19,6 +19,16 @@ public sealed class IncidentAuthorizationTests(IntegrationTestWebApplicationFact
     }
 
     [Fact]
+    public async Task GetIncidentAudit_WhenUnauthenticated_ReturnsUnauthorized()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/incidents/{Guid.NewGuid()}/audit");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateIncident_WhenUserIsViewer_ReturnsForbidden()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
