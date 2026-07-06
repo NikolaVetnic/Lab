@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using OperationsCenter.Application.Identity.Abstractions;
 using OperationsCenter.Infrastructure.Development;
 using OperationsCenter.Infrastructure.Persistence;
 
@@ -58,7 +59,7 @@ public sealed class DevelopmentDataSeederTests
 ]
 """);
 
-            var seeder = new DevelopmentDataSeeder(dbContext, seedFilePath);
+            var seeder = new DevelopmentDataSeeder(dbContext, new FakePasswordHasher(), seedFilePath);
 
             var firstRunInsertedCount = await seeder.SeedAsync();
             var secondRunInsertedCount = await seeder.SeedAsync();
@@ -105,7 +106,7 @@ public sealed class DevelopmentDataSeederTests
 ]
 """);
 
-            var seeder = new DevelopmentDataSeeder(dbContext, seedFilePath);
+            var seeder = new DevelopmentDataSeeder(dbContext, new FakePasswordHasher(), seedFilePath);
 
             _ = await seeder.SeedAsync();
 
@@ -126,5 +127,18 @@ public sealed class DevelopmentDataSeederTests
                 File.Delete(seedFilePath);
             }
         }
+    }
+}
+
+internal sealed class FakePasswordHasher : IPasswordHasher
+{
+    public bool Verify(string hashedPassword, string providedPassword)
+    {
+        return hashedPassword == $"hash::{providedPassword}";
+    }
+
+    public string Hash(string password)
+    {
+        return $"hash::{password}";
     }
 }

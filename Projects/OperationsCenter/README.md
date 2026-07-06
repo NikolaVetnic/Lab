@@ -139,6 +139,8 @@ Connection string-navn som brukes av API-et:
 
 Standard lokal konfigurasjon er satt i `appsettings.Development.json` for API-prosjektet.
 
+Eksempel på miljøvariabler for lokal kjøring ligger i `.env.example`.
+
 For nåværende løsning under `apps/api/operations-center`:
 
 ```bash
@@ -152,6 +154,23 @@ Når API-et kjører i Development, er dokumentasjon tilgjengelig på:
 - OpenAPI JSON: `https://localhost:7xxx/openapi/v1.json`
 
 Merk: Eksakt port vises i oppstart-logger og i `launchSettings.json` for API-prosjektet.
+
+## Identity, JWT og roller
+
+API-et har en minimal Identity-modul med JWT-basert autentisering og rollebasert autorisasjon.
+
+Login-endpoint:
+
+- `POST /auth/login`
+
+Ved gyldig login returneres et bearer token som brukes i `Authorization: Bearer <token>`.
+
+Incidents- og audit-endpoints krever autentisering:
+
+- `Incidents.Read`: Admin, Operator, Viewer
+- `Incidents.Write`: Admin, Operator
+
+OpenAPI (`/openapi/v1.json`) inkluderer bearer security scheme og markerer autoriserte endpoints.
 
 ## Demo seed data for Incidents (Development only)
 
@@ -170,6 +189,18 @@ Scriptet:
 - starter lokal PostgreSQL-container (`operations-center-postgres`) om nødvendig
 - venter til databasen er klar
 - kjører API i eksplisitt seed-modus: `dotnet run --project src/OperationsCenter.Api -- --seed`
+
+I seed-modus opprettes også idempotente utviklingsbrukere:
+
+- `admin@operations-center.local` (Admin)
+- `operator@operations-center.local` (Operator)
+- `viewer@operations-center.local` (Viewer)
+
+Passord kan overstyres med miljøvariabler:
+
+- `DEV_SEED_ADMIN_PASSWORD`
+- `DEV_SEED_OPERATOR_PASSWORD`
+- `DEV_SEED_VIEWER_PASSWORD`
 
 Viktig for tester:
 

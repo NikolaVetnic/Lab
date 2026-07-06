@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using OperationsCenter.Application.Identity.Abstractions;
 using OperationsCenter.Domain.Audit;
+using OperationsCenter.Domain.Identity;
 using OperationsCenter.Domain.Incidents;
 using OperationsCenter.Infrastructure.Persistence;
 using System.Text.Json;
@@ -22,17 +24,20 @@ public sealed class DevelopmentDataSeeder
     };
 
     private readonly OperationsCenterDbContext _dbContext;
+    private readonly IPasswordHasher _passwordHasher;
     private readonly string? _seedDataFilePathOverride;
 
-    public DevelopmentDataSeeder(OperationsCenterDbContext dbContext)
+    public DevelopmentDataSeeder(OperationsCenterDbContext dbContext, IPasswordHasher passwordHasher)
     {
         _dbContext = dbContext;
+        _passwordHasher = passwordHasher;
         _seedDataFilePathOverride = null;
     }
 
-    public DevelopmentDataSeeder(OperationsCenterDbContext dbContext, string seedDataFilePath)
+    public DevelopmentDataSeeder(OperationsCenterDbContext dbContext, IPasswordHasher passwordHasher, string seedDataFilePath)
     {
         _dbContext = dbContext;
+        _passwordHasher = passwordHasher;
         _seedDataFilePathOverride = seedDataFilePath;
     }
 
@@ -43,6 +48,8 @@ public sealed class DevelopmentDataSeeder
 
     public async Task<int> SeedAsync(DevelopmentSeedProfile profile, CancellationToken cancellationToken = default)
     {
+        await SeedIdentityAsync(profile, cancellationToken);
+
         var seedItems = await LoadSeedItemsAsync(profile, cancellationToken);
         var seedTitles = seedItems.Select(item => item.Title).ToArray();
         var seedSource = GetSeedSource(profile);
@@ -113,6 +120,26 @@ public sealed class DevelopmentDataSeeder
         return insertedCount;
     }
 
+    private async Task SeedIdentityAsync(DevelopmentSeedProfile profile, CancellationToken cancellationToken)
+    {
+        var users = GetSeedUsers(profile);
+
+        foreach (var user in users)
+        {
+            var existingUser = await _dbContext.GetUserByEmailAsync(user.Email, cancellationToken);
+            if (existingUser is not null)
+            {
+                continue;
+            }
+
+            var passwordHash = _passwordHasher.Hash(user.Password);
+            var newUser = User.Create(user.Email, passwordHash, user.Role, DateTimeOffset.UtcNow);
+            await _dbContext.AddUserAsync(newUser, cancellationToken);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<IReadOnlyList<SeedIncident>> LoadSeedItemsAsync(DevelopmentSeedProfile profile, CancellationToken cancellationToken)
     {
         var seedDataFilePath = ResolveSeedDataFilePath(profile);
@@ -162,6 +189,21 @@ public sealed class DevelopmentDataSeeder
         return profile == DevelopmentSeedProfile.Demo
             ? "system:dev-seed:demo"
             : "system:dev-seed";
+    }
+
+    private static IReadOnlyList<SeedUser> GetSeedUsers(DevelopmentSeedProfile profile)
+    {
+        var suffix = profile == DevelopmentSeedProfile.Demo ? "-demo" : string.Empty;
+        var adminPassword = Environment.GetEnvironmentVariable("DEV_SEED_ADMIN_PASSWORD") ?? "Admin123!";
+        var operatorPassword = Environment.GetEnvironmentVariable("DEV_SEED_OPERATOR_PASSWORD") ?? "Operator123!";
+        var viewerPassword = Environment.GetEnvironmentVariable("DEV_SEED_VIEWER_PASSWORD") ?? "Viewer123!";
+
+        return
+        [
+            new SeedUser($"admin{suffix}@operations-center.local", adminPassword, SystemRole.Admin),
+            new SeedUser($"operator{suffix}@operations-center.local", operatorPassword, SystemRole.Operator),
+            new SeedUser($"viewer{suffix}@operations-center.local", viewerPassword, SystemRole.Viewer)
+        ];
     }
 
     private static IReadOnlyList<StatusTransition> ApplyStatusAndCollectTransitions(Incident incident, SeedIncident item)
@@ -265,6 +307,8 @@ public sealed class DevelopmentDataSeeder
     }
 
     private sealed record StatusTransition(IncidentStatus From, IncidentStatus To);
+
+    private sealed record SeedUser(string Email, string Password, SystemRole Role);
 
     private sealed record SeedIncident(
         string Title,

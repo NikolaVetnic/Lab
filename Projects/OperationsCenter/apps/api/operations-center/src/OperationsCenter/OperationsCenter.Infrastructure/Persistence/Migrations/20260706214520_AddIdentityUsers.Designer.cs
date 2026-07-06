@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using OperationsCenter.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using OperationsCenter.Infrastructure.Persistence;
 namespace OperationsCenter.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(OperationsCenterDbContext))]
-    partial class OperationsCenterDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260706214520_AddIdentityUsers")]
+    partial class AddIdentityUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -17,7 +17,8 @@ public sealed class CreateIncidentCommandHandler(IOperationsCenterDbContext dbCo
         AuditEvent auditEvent = AuditEvent.Create(
             entityType: "Incident",
             entityId: incident.Id,
-            action: "Created");
+            action: "Created",
+            actorId: request.ActorId);
 
         await _dbContext.AddIncidentAsync(incident, cancellationToken);
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);

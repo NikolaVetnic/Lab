@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using OperationsCenter.Infrastructure.Persistence;
 using OperationsCenter.Domain.Audit;
+using OperationsCenter.Domain.Identity;
 using OperationsCenter.Domain.Incidents;
 
 namespace OperationsCenter.IntegrationTests;
@@ -17,7 +18,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task CreateIncident_WhenRequestIsValid_ReturnsCreatedWithExpectedBody()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var request = new
         {
@@ -44,7 +49,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task CreateIncident_WhenRequestIsValid_WritesCreatedAuditEvent()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var response = await client.PostAsJsonAsync(
             "/incidents",
@@ -78,7 +87,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task CreateIncident_WhenTitleIsMissingOrInvalid_ReturnsBadRequest()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var missingTitleResponse = await client.PostAsJsonAsync(
             "/incidents",
@@ -105,7 +118,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task ListIncidents_WhenCalled_ReturnsNewestIncidentsFirst()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var older = await CreateIncidentAsync(client, $"Older incident {Guid.NewGuid()}");
         await Task.Delay(50);
@@ -129,7 +146,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task GetIncidentById_WhenIncidentExists_ReturnsOk()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var createdIncident = await CreateIncidentAsync(client, $"Get incident {Guid.NewGuid()}");
 
@@ -145,7 +166,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task GetIncidentById_WhenIncidentDoesNotExist_ReturnsNotFoundProblemDetails()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var response = await client.GetAsync($"/incidents/{Guid.NewGuid()}");
 
@@ -159,7 +184,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task UpdateIncidentStatus_WhenTransitionIsValid_ReturnsOkWithUpdatedIncident()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var createdIncident = await CreateIncidentAsync(client, $"Update status {Guid.NewGuid()}");
 
@@ -178,7 +207,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task UpdateIncidentStatus_WhenTransitionIsValid_WritesStatusChangedAuditEvent()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var createdIncident = await CreateIncidentAsync(client, $"Audit status {Guid.NewGuid()}");
 
@@ -210,7 +243,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task UpdateIncidentStatus_WhenIncidentDoesNotExist_ReturnsNotFoundProblemDetails()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var response = await client.PatchAsJsonAsync(
             $"/incidents/{Guid.NewGuid()}/status",
@@ -226,7 +263,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task UpdateIncidentStatus_WhenTransitionIsInvalid_ReturnsConflictProblemDetails()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var createdIncident = await CreateIncidentAsync(client, $"Invalid transition {Guid.NewGuid()}");
 
@@ -244,7 +285,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task GetIncidentAudits_WhenIncidentHasChanges_ReturnsCreatedAndStatusChangedEvents()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var createdIncident = await CreateIncidentAsync(client, $"Incident audits {Guid.NewGuid()}");
 
@@ -269,7 +314,11 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task GetAudits_WhenActionFilterIsProvided_ReturnsOnlyMatchingAction()
     {
-        using var client = _factory.CreateClient();
+        using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
+            _factory,
+            email: $"operator-{Guid.NewGuid()}@operations-center.local",
+            password: "Operator123!",
+            role: SystemRole.Operator);
 
         var createdIncident = await CreateIncidentAsync(client, $"Filtered audits {Guid.NewGuid()}");
 

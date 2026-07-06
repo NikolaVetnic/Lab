@@ -3,6 +3,7 @@ using BuildingBlocks.Cqrs.Abstractions;
 using OperationsCenter.Application.DependencyInjection;
 using OperationsCenter.Application.Persistence;
 using OperationsCenter.Domain.Audit;
+using OperationsCenter.Domain.Identity;
 using OperationsCenter.Domain.Incidents;
 using System.Collections.Concurrent;
 
@@ -119,6 +120,16 @@ public sealed class ApplicationServiceCollectionExtensionsTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult<IReadOnlyList<AuditEvent>>(Array.Empty<AuditEvent>());
+        }
+
+        public Task AddUserAsync(User user, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<User?>(null);
         }
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)

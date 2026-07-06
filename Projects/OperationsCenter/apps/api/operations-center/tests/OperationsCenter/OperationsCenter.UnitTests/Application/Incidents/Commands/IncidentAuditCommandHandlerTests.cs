@@ -3,6 +3,7 @@ using OperationsCenter.Application.Incidents.Commands.CreateIncident;
 using OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
 using OperationsCenter.Application.Persistence;
 using OperationsCenter.Domain.Audit;
+using OperationsCenter.Domain.Identity;
 using OperationsCenter.Domain.Incidents;
 
 namespace OperationsCenter.UnitTests.Application.Incidents.Commands;
@@ -89,6 +90,16 @@ public sealed class IncidentAuditCommandHandlerTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult<IReadOnlyList<AuditEvent>>([]);
+        }
+
+        public Task AddUserAsync(User user, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<User?>(null);
         }
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)

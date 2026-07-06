@@ -7,4 +7,5 @@ namespace OperationsCenter.Application.Incidents.Commands.CreateIncident;
 public sealed record CreateIncidentCommand(
     string Title,
     string? Description,
-    IncidentSeverity Severity) : ICommand<IncidentResponse>;
+    IncidentSeverity Severity,
+    string? ActorId = null) : ICommand<IncidentResponse>;

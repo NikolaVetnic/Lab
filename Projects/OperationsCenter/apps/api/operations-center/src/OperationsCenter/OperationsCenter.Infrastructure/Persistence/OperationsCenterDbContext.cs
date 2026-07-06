@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OperationsCenter.Application.Persistence;
 using OperationsCenter.Domain.Audit;
+using OperationsCenter.Domain.Identity;
 using OperationsCenter.Domain.Incidents;
 
 namespace OperationsCenter.Infrastructure.Persistence;
@@ -9,6 +10,8 @@ public sealed class OperationsCenterDbContext(DbContextOptions<OperationsCenterD
     : DbContext(options), IOperationsCenterDbContext
 {
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
+    public DbSet<User> Users => Set<User>();
 
     public DbSet<Incident> Incidents => Set<Incident>();
 
@@ -70,6 +73,25 @@ public sealed class OperationsCenterDbContext(DbContextOptions<OperationsCenterD
             .OrderByDescending(auditEvent => auditEvent.OccurredAt)
             .Take(200)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddUserAsync(User user, CancellationToken cancellationToken)
+    {
+        await Users.AddAsync(user, cancellationToken);
+    }
+
+    public Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return Task.FromResult<User?>(null);
+        }
+
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+
+        return Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Email == normalizedEmail, cancellationToken);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

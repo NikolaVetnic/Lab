@@ -1,5 +1,6 @@
 using OperationsCenter.Domain.Incidents;
 using OperationsCenter.Domain.Audit;
+using OperationsCenter.Domain.Identity;
 
 namespace OperationsCenter.Application.Persistence;
 
@@ -20,6 +21,10 @@ public interface IOperationsCenterDbContext
         Guid? entityId,
         string? action,
         CancellationToken cancellationToken);
+
+    Task AddUserAsync(User user, CancellationToken cancellationToken);
+
+    Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

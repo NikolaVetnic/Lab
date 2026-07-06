@@ -1,5 +1,7 @@
 using BuildingBlocks.Cqrs.Abstractions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OperationsCenter.Application.Identity.Abstractions;
 using OperationsCenter.Application.Incidents.Commands.CreateIncident;
 using OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
 using OperationsCenter.Application.Incidents.Queries.GetIncidentById;
@@ -11,11 +13,15 @@ namespace OperationsCenter.Api.Controllers;
 
 [ApiController]
 [Route("incidents")]
-public sealed class IncidentsController(ISender sender, ILogger<IncidentsController> logger) : ControllerBase
+public sealed class IncidentsController(
+    ISender sender,
+    ILogger<IncidentsController> logger,
+    ICurrentUser currentUser) : ControllerBase
 {
     private const string GetIncidentByIdRouteName = "GetIncidentById";
 
     [HttpGet]
+    [Authorize(Policy = "Incidents.Read")]
     [ProducesResponseType<IReadOnlyList<IncidentResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<IncidentResponse>>> ListIncidentsAsync(CancellationToken cancellationToken)
     {
@@ -25,6 +31,7 @@ public sealed class IncidentsController(ISender sender, ILogger<IncidentsControl
     }
 
     [HttpGet("{id:guid}", Name = GetIncidentByIdRouteName)]
+    [Authorize(Policy = "Incidents.Read")]
     [ProducesResponseType<IncidentResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IncidentResponse>> GetIncidentByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -46,6 +53,7 @@ public sealed class IncidentsController(ISender sender, ILogger<IncidentsControl
     }
 
     [HttpPatch("{id:guid}/status")]
+    [Authorize(Policy = "Incidents.Write")]
     [ProducesResponseType<IncidentResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -63,7 +71,7 @@ public sealed class IncidentsController(ISender sender, ILogger<IncidentsControl
             }));
         }
 
-        var command = new UpdateIncidentStatusCommand(id, request.Status);
+        var command = new UpdateIncidentStatusCommand(id, request.Status, ResolveActorId());
         UpdateIncidentStatusResult result = await sender.Send(command, cancellationToken);
 
         if (result.Outcome is UpdateIncidentStatusOutcome.NotFound)
@@ -95,6 +103,7 @@ public sealed class IncidentsController(ISender sender, ILogger<IncidentsControl
     }
 
     [HttpPost]
+    [Authorize(Policy = "Incidents.Write")]
     [ProducesResponseType<IncidentResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IncidentResponse>> CreateIncidentAsync(
@@ -107,7 +116,7 @@ public sealed class IncidentsController(ISender sender, ILogger<IncidentsControl
             return BadRequest(new ValidationProblemDetails(validationErrors));
         }
 
-        var command = new CreateIncidentCommand(request.Title!, request.Description, request.Severity);
+        var command = new CreateIncidentCommand(request.Title!, request.Description, request.Severity, ResolveActorId());
         IncidentResponse createdIncident = await sender.Send(command, cancellationToken);
 
         logger.LogInformation(
@@ -145,5 +154,15 @@ public sealed class IncidentsController(ISender sender, ILogger<IncidentsControl
         }
 
         return errors;
+    }
+
+    private string? ResolveActorId()
+    {
+        if (currentUser.UserId.HasValue)
+        {
+            return currentUser.UserId.Value.ToString();
+        }
+
+        return currentUser.Email;
     }
 }

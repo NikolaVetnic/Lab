@@ -1,4 +1,5 @@
 using BuildingBlocks.Cqrs.Abstractions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OperationsCenter.Application.Audits.Contracts;
 using OperationsCenter.Application.Audits.Queries.ListAudits;
@@ -9,6 +10,7 @@ namespace OperationsCenter.Api.Controllers;
 public sealed class AuditsController(ISender sender) : ControllerBase
 {
     [HttpGet("/audits")]
+    [Authorize(Policy = "Incidents.Read")]
     [ProducesResponseType<IReadOnlyList<AuditEventResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<AuditEventResponse>>> ListAuditsAsync(
         [FromQuery] string? entityType,
@@ -22,6 +24,7 @@ public sealed class AuditsController(ISender sender) : ControllerBase
     }
 
     [HttpGet("/incidents/{incidentId:guid}/audits")]
+    [Authorize(Policy = "Incidents.Read")]
     [ProducesResponseType<IReadOnlyList<AuditEventResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<AuditEventResponse>>> ListIncidentAuditsAsync(
         Guid incidentId,
