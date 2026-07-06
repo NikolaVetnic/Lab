@@ -1,6 +1,5 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OperationsCenter.Application.Identity.Abstractions;
@@ -12,7 +11,7 @@ namespace OperationsCenter.IntegrationTests;
 internal static class IntegrationTestAuthHelper
 {
     public static Task EnsureUserAsync(
-        WebApplicationFactory<Program> factory,
+        IntegrationTestWebApplicationFactory factory,
         string email,
         string password,
         SystemRole role)
@@ -21,7 +20,7 @@ internal static class IntegrationTestAuthHelper
     }
 
     public static async Task<HttpClient> CreateAuthenticatedClientAsync(
-        WebApplicationFactory<Program> factory,
+        IntegrationTestWebApplicationFactory factory,
         string email,
         string password,
         SystemRole role)
@@ -45,7 +44,7 @@ internal static class IntegrationTestAuthHelper
     }
 
     private static async Task EnsureUserInternalAsync(
-        WebApplicationFactory<Program> factory,
+        IntegrationTestWebApplicationFactory factory,
         string email,
         string password,
         SystemRole role)

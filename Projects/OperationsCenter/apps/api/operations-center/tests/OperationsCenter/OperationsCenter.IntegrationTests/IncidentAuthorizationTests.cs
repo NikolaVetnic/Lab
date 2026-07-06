@@ -1,20 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using OperationsCenter.Domain.Identity;
 using OperationsCenter.Domain.Incidents;
 
 namespace OperationsCenter.IntegrationTests;
 
-public sealed class IncidentAuthorizationTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+[Collection(IntegrationTestCollection.Name)]
+public sealed class IncidentAuthorizationTests(IntegrationTestWebApplicationFactory factory)
 {
-    private readonly WebApplicationFactory<Program> _factory = factory;
-
     [Fact]
     public async Task ListIncidents_WhenUnauthenticated_ReturnsUnauthorized()
     {
-        using var client = _factory.CreateClient();
+        using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/incidents");
 
@@ -25,7 +22,7 @@ public sealed class IncidentAuthorizationTests(WebApplicationFactory<Program> fa
     public async Task CreateIncident_WhenUserIsViewer_ReturnsForbidden()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"viewer-{Guid.NewGuid()}@operations-center.local",
             password: "Viewer123!",
             role: SystemRole.Viewer);
@@ -46,7 +43,7 @@ public sealed class IncidentAuthorizationTests(WebApplicationFactory<Program> fa
     public async Task ListIncidents_WhenUserIsViewer_ReturnsOk()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"viewer-{Guid.NewGuid()}@operations-center.local",
             password: "Viewer123!",
             role: SystemRole.Viewer);

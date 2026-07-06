@@ -1,14 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using OperationsCenter.Domain.Identity;
 
 namespace OperationsCenter.IntegrationTests;
 
-public sealed class IdentityEndpointsTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+[Collection(IntegrationTestCollection.Name)]
+public sealed class IdentityEndpointsTests(IntegrationTestWebApplicationFactory factory)
 {
-    private readonly WebApplicationFactory<Program> _factory = factory;
-
     [Fact]
     public async Task Login_WhenCredentialsAreValid_ReturnsBearerToken()
     {
@@ -16,12 +14,12 @@ public sealed class IdentityEndpointsTests(WebApplicationFactory<Program> factor
         const string password = "Admin123!";
 
         await IntegrationTestAuthHelper.EnsureUserAsync(
-            _factory,
+            factory,
             email: email,
             password: password,
             role: SystemRole.Admin);
 
-        using var client = _factory.CreateClient();
+        using var client = factory.CreateClient();
 
         var loginResponse = await client.PostAsJsonAsync(
             "/auth/login",
@@ -42,7 +40,7 @@ public sealed class IdentityEndpointsTests(WebApplicationFactory<Program> factor
     [Fact]
     public async Task Login_WhenCredentialsAreInvalid_ReturnsUnauthorized()
     {
-        using var client = _factory.CreateClient();
+        using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
             "/auth/login",

@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using OperationsCenter.Infrastructure.Persistence;
 using OperationsCenter.Domain.Audit;
@@ -11,15 +10,14 @@ using OperationsCenter.Domain.Incidents;
 
 namespace OperationsCenter.IntegrationTests;
 
-public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+[Collection(IntegrationTestCollection.Name)]
+public sealed class IncidentEndpointsTests(IntegrationTestWebApplicationFactory factory)
 {
-    private readonly WebApplicationFactory<Program> _factory = factory;
-
     [Fact]
     public async Task CreateIncident_WhenRequestIsValid_ReturnsCreatedWithExpectedBody()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -50,7 +48,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task CreateIncident_WhenRequestIsValid_WritesCreatedAuditEvent()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -69,7 +67,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
         var body = await response.Content.ReadFromJsonAsync<IncidentDto>();
         Assert.NotNull(body);
 
-        await using var scope = _factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<OperationsCenterDbContext>();
 
         AuditEvent? auditEvent = await dbContext.AuditEvents
@@ -88,7 +86,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task CreateIncident_WhenTitleIsMissingOrInvalid_ReturnsBadRequest()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -119,7 +117,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task ListIncidents_WhenCalled_ReturnsNewestIncidentsFirst()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -147,7 +145,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task GetIncidentById_WhenIncidentExists_ReturnsOk()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -167,7 +165,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task GetIncidentById_WhenIncidentDoesNotExist_ReturnsNotFoundProblemDetails()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -185,7 +183,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task UpdateIncidentStatus_WhenTransitionIsValid_ReturnsOkWithUpdatedIncident()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -208,7 +206,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task UpdateIncidentStatus_WhenTransitionIsValid_WritesStatusChangedAuditEvent()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -221,7 +219,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        await using var scope = _factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<OperationsCenterDbContext>();
 
         AuditEvent? auditEvent = await dbContext.AuditEvents
@@ -244,7 +242,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task UpdateIncidentStatus_WhenIncidentDoesNotExist_ReturnsNotFoundProblemDetails()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -264,7 +262,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task UpdateIncidentStatus_WhenTransitionIsInvalid_ReturnsConflictProblemDetails()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -286,7 +284,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task GetIncidentAudits_WhenIncidentHasChanges_ReturnsCreatedAndStatusChangedEvents()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);
@@ -315,7 +313,7 @@ public sealed class IncidentEndpointsTests(WebApplicationFactory<Program> factor
     public async Task GetAudits_WhenActionFilterIsProvided_ReturnsOnlyMatchingAction()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(
-            _factory,
+            factory,
             email: $"operator-{Guid.NewGuid()}@operations-center.local",
             password: "Operator123!",
             role: SystemRole.Operator);

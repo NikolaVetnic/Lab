@@ -1,17 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace OperationsCenter.IntegrationTests;
 
-public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+[Collection(IntegrationTestCollection.Name)]
+public sealed class HealthEndpointTests(IntegrationTestWebApplicationFactory factory)
 {
-    private readonly WebApplicationFactory<Program> _factory = factory;
-
     [Fact]
     public async Task GetHealth_WhenCalled_ReturnsOk()
     {
-        using var client = _factory.CreateClient();
+        using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/health");
 
@@ -25,7 +23,7 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory) 
     [Fact]
     public async Task GetReadiness_WhenCalled_ReturnsOk()
     {
-        using var client = _factory.CreateClient();
+        using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/ready");
 
