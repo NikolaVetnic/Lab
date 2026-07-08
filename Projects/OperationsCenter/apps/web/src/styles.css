@@ -119,6 +119,10 @@ td {
   color: #b91c1c;
 }
 
+.success {
+  color: #0f766e;
+}
+
 .spinner {
   width: 40px;
   height: 40px;
@@ -173,6 +177,37 @@ td {
   margin: 0;
 }
 
+.status-update-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.status-update-panel h3 {
+  margin: 0 0 0.6rem 0;
+}
+
+.status-update-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.status-update-controls select {
+  flex: 1 1 auto;
+  height: 42px;
+}
+
+.status-update-controls button {
+  flex: 0 0 170px;
+  height: 42px;
+  padding: 0 0.9rem;
+  margin-top: 0;
+  font: inherit;
+  font-weight: 600;
+}
+
 form.card.create-form {
   width: min(820px, 100%);
   display: grid;
@@ -216,5 +251,10 @@ form.card.create-form {
 
   .details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .status-update-controls {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

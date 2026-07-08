@@ -52,6 +52,7 @@ npm run build
 - `GET /incidents`
 - `POST /incidents`
 - `GET /incidents/{id}`
+- `PATCH /incidents/{id}/status`
 
 ## Current scope
 
@@ -64,6 +65,7 @@ Included:
 - loading/empty/error handling for incident list
 - create incident form with basic client-side validation
 - incident details page with not-found/auth/error states
+- incident details status updates with backend-enforced transitions
 
 Not included yet:
 
