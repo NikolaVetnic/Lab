@@ -1,21 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ApiError } from '../api/apiClient';
-import { type Incident, listIncidents } from '../api/incidentsApi';
+import { type Incident, listIncidents, severityLabels, statusLabels } from '../api/incidentsApi';
 import { useAuth } from '../auth/AuthContext';
-
-const severityLabels: Record<number, string> = {
-  1: 'Low',
-  2: 'Medium',
-  3: 'High',
-  4: 'Critical',
-};
-
-const statusLabels: Record<number, string> = {
-  1: 'Open',
-  2: 'In Progress',
-  3: 'Resolved',
-  4: 'Closed',
-};
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -92,7 +79,12 @@ export function IncidentsPage(): JSX.Element {
   if (incidents.length === 0) {
     return (
       <div className="card">
-        <h2>Incidents</h2>
+        <div className="page-actions">
+          <h2>Incidents</h2>
+          <Link to="/incidents/new" className="link-button">
+            Create incident
+          </Link>
+        </div>
         <p className="muted">No incidents found.</p>
       </div>
     );
@@ -100,7 +92,12 @@ export function IncidentsPage(): JSX.Element {
 
   return (
     <div className="card">
-      <h2>Incidents</h2>
+      <div className="page-actions">
+        <h2>Incidents</h2>
+        <Link to="/incidents/new" className="link-button">
+          Create incident
+        </Link>
+      </div>
       <table>
         <thead>
           <tr>
@@ -113,7 +110,9 @@ export function IncidentsPage(): JSX.Element {
         <tbody>
           {incidents.map((incident) => (
             <tr key={incident.id}>
-              <td>{incident.title}</td>
+              <td>
+                <Link to={`/incidents/${incident.id}`}>{incident.title}</Link>
+              </td>
               <td>{severityLabels[incident.severity] ?? String(incident.severity)}</td>
               <td>{statusLabels[incident.status] ?? String(incident.status)}</td>
               <td>{formatDate(incident.createdAt)}</td>

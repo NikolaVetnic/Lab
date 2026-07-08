@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoginPage } from './auth/LoginPage';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
+import { CreateIncidentPage } from './incidents/CreateIncidentPage';
+import { IncidentDetailsPage } from './incidents/IncidentDetailsPage';
 import { IncidentsPage } from './incidents/IncidentsPage';
 import { AppLayout } from './layout/AppLayout';
 
@@ -21,6 +23,26 @@ export default function App(): JSX.Element {
           <ProtectedRoute>
             <AppLayout>
               <IncidentsPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/incidents/new"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <CreateIncidentPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/incidents/:id"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <IncidentDetailsPage />
             </AppLayout>
           </ProtectedRoute>
         }

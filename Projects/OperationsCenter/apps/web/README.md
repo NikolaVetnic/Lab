@@ -39,10 +39,19 @@ Open the local Vite URL (typically `http://localhost:5173`).
 npm run build
 ```
 
+## Routes currently available
+
+- /login
+- /incidents
+- /incidents/new
+- /incidents/:id
+
 ## Endpoints currently used
 
 - `POST /auth/login`
 - `GET /incidents`
+- `POST /incidents`
+- `GET /incidents/{id}`
 
 ## Current scope
 
@@ -51,13 +60,15 @@ Included:
 - login page
 - session token storage (`sessionStorage`)
 - authenticated API client calls with bearer token
-- protected incidents route
+- protected incidents routes (list, create, details)
 - loading/empty/error handling for incident list
+- create incident form with basic client-side validation
+- incident details page with not-found/auth/error states
 
 Not included yet:
 
 - refresh tokens
-- incident create/update UI
+- incident status update UI
 - SignalR or real-time updates
 - audit timeline UI
 - dashboards/charts

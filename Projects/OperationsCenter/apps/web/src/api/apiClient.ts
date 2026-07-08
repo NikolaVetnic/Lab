@@ -3,12 +3,14 @@ export type ApiErrorKind = 'unauthorized' | 'forbidden' | 'http' | 'network' | '
 export class ApiError extends Error {
   public readonly status?: number;
   public readonly kind: ApiErrorKind;
+  public readonly payload?: unknown;
 
-  public constructor(message: string, kind: ApiErrorKind, status?: number) {
+  public constructor(message: string, kind: ApiErrorKind, status?: number, payload?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.kind = kind;
     this.status = status;
+    this.payload = payload;
   }
 }
 
@@ -104,6 +106,7 @@ export async function apiRequest<TResponse>(
           extractProblemMessage(body, 'Unauthorized request.'),
           'unauthorized',
           response.status,
+          body,
         );
       }
 
@@ -112,6 +115,7 @@ export async function apiRequest<TResponse>(
           extractProblemMessage(body, 'Forbidden request.'),
           'forbidden',
           response.status,
+          body,
         );
       }
 
@@ -119,6 +123,7 @@ export async function apiRequest<TResponse>(
         extractProblemMessage(body, `Request failed with status ${response.status}.`),
         'http',
         response.status,
+        body,
       );
     }
 
