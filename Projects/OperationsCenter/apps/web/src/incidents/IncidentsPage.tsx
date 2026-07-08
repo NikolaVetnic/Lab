@@ -65,7 +65,11 @@ export function IncidentsPage(): JSX.Element {
   }, [accessToken, logout]);
 
   if (isLoading) {
-    return <p>Loading incidents...</p>;
+    return (
+      <div className="page-center">
+        <div className="spinner" aria-label="Loading incidents" role="status" />
+      </div>
+    );
   }
 
   if (errorMessage) {
