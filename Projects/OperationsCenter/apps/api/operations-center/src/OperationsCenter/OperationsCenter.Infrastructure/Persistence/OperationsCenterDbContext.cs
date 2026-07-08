@@ -114,6 +114,24 @@ public sealed class OperationsCenterDbContext(DbContextOptions<OperationsCenterD
             .FirstOrDefaultAsync(user => user.Email == normalizedEmail, cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUserEmailsByIdsAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken)
+    {
+        if (userIds.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        var users = await Users
+            .AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.Email })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(user => user.Id, user => user.Email);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(OperationsCenterDbContext).Assembly);

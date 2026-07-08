@@ -208,6 +208,41 @@ td {
   font-weight: 600;
 }
 
+.audit-timeline-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.audit-timeline-panel h3 {
+  margin: 0 0 0.6rem 0;
+}
+
+.audit-timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.audit-timeline-item {
+  border-left: 3px solid #94a3b8;
+  padding-left: 0.7rem;
+}
+
+.audit-action {
+  margin: 0;
+  font-weight: 600;
+}
+
+.audit-meta {
+  margin: 0.2rem 0 0 0;
+  color: #475569;
+  font-size: 0.92rem;
+}
+
 form.card.create-form {
   width: min(820px, 100%);
   display: grid;

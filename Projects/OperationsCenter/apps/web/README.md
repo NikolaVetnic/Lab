@@ -53,6 +53,7 @@ npm run build
 - `POST /incidents`
 - `GET /incidents/{id}`
 - `PATCH /incidents/{id}/status`
+- `GET /incidents/{id}/audit`
 
 ## Current scope
 
@@ -66,12 +67,11 @@ Included:
 - create incident form with basic client-side validation
 - incident details page with not-found/auth/error states
 - incident details status updates with backend-enforced transitions
+- incident details audit timeline with status-change metadata rendering
 
 Not included yet:
 
 - refresh tokens
-- incident status update UI
 - SignalR or real-time updates
-- audit timeline UI
 - dashboards/charts
 - notifications

@@ -7,4 +7,5 @@ public sealed record AuditEventResponse(
     string Action,
     DateTimeOffset OccurredAt,
     string? ActorId,
+    string? ActorEmail,
     string? MetadataJson);

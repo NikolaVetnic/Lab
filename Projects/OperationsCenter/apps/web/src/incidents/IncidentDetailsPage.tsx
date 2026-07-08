@@ -2,15 +2,22 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../api/apiClient';
 import {
+  getIncidentAudit,
   getIncidentById,
   incidentStatusOptions,
   severityLabels,
   statusLabels,
+  type AuditEvent,
   type Incident,
   type IncidentStatus,
   updateIncidentStatus,
 } from '../api/incidentsApi';
 import { useAuth } from '../auth/AuthContext';
+
+interface AuditMetadata {
+  oldStatus?: string;
+  newStatus?: string;
+}
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -28,6 +35,85 @@ export function IncidentDetailsPage(): JSX.Element {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [statusErrorMessage, setStatusErrorMessage] = useState<string | null>(null);
   const [statusSuccessMessage, setStatusSuccessMessage] = useState<string | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [isAuditLoading, setIsAuditLoading] = useState(true);
+  const [auditErrorMessage, setAuditErrorMessage] = useState<string | null>(null);
+
+  const loadIncidentAudit = async (
+    incidentId: string,
+    token: string,
+    isCancelled: boolean,
+  ): Promise<void> => {
+    setIsAuditLoading(true);
+    setAuditErrorMessage(null);
+
+    try {
+      const response = await getIncidentAudit(incidentId, token);
+      if (!isCancelled) {
+        const ordered = [...response].sort(
+          (a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
+        );
+        setAuditEvents(ordered);
+      }
+    } catch (error) {
+      if (isCancelled) {
+        return;
+      }
+
+      if (error instanceof ApiError && error.kind === 'unauthorized') {
+        logout();
+        setAuditErrorMessage('Your session has expired. Please sign in again.');
+      } else if (error instanceof ApiError && error.kind === 'forbidden') {
+        setAuditErrorMessage('You do not have permission to view incident audit history.');
+      } else if (error instanceof ApiError && error.status === 404) {
+        setAuditErrorMessage('Incident audit history was not found.');
+      } else {
+        setAuditErrorMessage('Failed to load incident audit history.');
+      }
+    } finally {
+      if (!isCancelled) {
+        setIsAuditLoading(false);
+      }
+    }
+  };
+
+  const parseAuditMetadata = (metadataJson: string | null): AuditMetadata | null => {
+    if (!metadataJson) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(metadataJson) as unknown;
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+
+      const data = parsed as Record<string, unknown>;
+      return {
+        oldStatus: typeof data.oldStatus === 'string' ? data.oldStatus : undefined,
+        newStatus: typeof data.newStatus === 'string' ? data.newStatus : undefined,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const formatAuditAction = (event: AuditEvent): string => {
+    if (event.action === 'Created') {
+      return 'Incident created';
+    }
+
+    if (event.action === 'StatusChanged') {
+      const metadata = parseAuditMetadata(event.metadataJson);
+      if (metadata?.oldStatus && metadata?.newStatus) {
+        return `Status changed from ${metadata.oldStatus} to ${metadata.newStatus}`;
+      }
+
+      return 'Status changed';
+    }
+
+    return event.action;
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -54,6 +140,8 @@ export function IncidentDetailsPage(): JSX.Element {
           setIncident(response);
           setSelectedStatus(response.status as IncidentStatus);
         }
+
+        await loadIncidentAudit(id, accessToken, isCancelled);
       } catch (error) {
         if (isCancelled) {
           return;
@@ -167,6 +255,7 @@ export function IncidentDetailsPage(): JSX.Element {
                 setIncident(updated);
                 setSelectedStatus(updated.status as IncidentStatus);
                 setStatusSuccessMessage('Incident status updated.');
+                await loadIncidentAudit(id, accessToken, false);
               } catch (error) {
                 if (error instanceof ApiError && error.kind === 'unauthorized') {
                   logout();
@@ -193,6 +282,30 @@ export function IncidentDetailsPage(): JSX.Element {
 
         {statusErrorMessage ? <p className="error">{statusErrorMessage}</p> : null}
         {statusSuccessMessage ? <p className="success">{statusSuccessMessage}</p> : null}
+      </div>
+
+      <div className="audit-timeline-panel">
+        <h3>Audit history</h3>
+
+        {isAuditLoading ? <p className="muted">Loading audit history...</p> : null}
+
+        {!isAuditLoading && auditErrorMessage ? <p className="error">{auditErrorMessage}</p> : null}
+
+        {!isAuditLoading && !auditErrorMessage && auditEvents.length === 0 ? (
+          <p className="muted">No audit events found.</p>
+        ) : null}
+
+        {!isAuditLoading && !auditErrorMessage && auditEvents.length > 0 ? (
+          <ol className="audit-timeline-list">
+            {auditEvents.map((event) => (
+              <li key={event.id} className="audit-timeline-item">
+                <p className="audit-action">{formatAuditAction(event)}</p>
+                <p className="audit-meta">{formatDate(event.occurredAt)}</p>
+                <p className="audit-meta">Actor ID: {event.actorId ?? 'Unknown actor'}</p>
+              </li>
+            ))}
+          </ol>
+        ) : null}
       </div>
 
       <dl className="details-grid">

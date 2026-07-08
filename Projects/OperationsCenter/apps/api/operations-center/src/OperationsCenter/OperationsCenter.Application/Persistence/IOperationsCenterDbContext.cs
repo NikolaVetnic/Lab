@@ -32,5 +32,9 @@ public interface IOperationsCenterDbContext
 
     Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken);
 
+    Task<IReadOnlyDictionary<Guid, string>> GetUserEmailsByIdsAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken);
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

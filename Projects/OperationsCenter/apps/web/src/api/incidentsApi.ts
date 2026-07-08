@@ -48,6 +48,17 @@ export interface UpdateIncidentStatusRequest {
   status: IncidentStatus;
 }
 
+export interface AuditEvent {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  occurredAt: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  metadataJson: string | null;
+}
+
 export async function listIncidents(token: string): Promise<Incident[]> {
   return apiRequest<Incident[]>('/incidents', {
     method: 'GET',
@@ -81,6 +92,13 @@ export async function updateIncidentStatus(
   return apiRequest<Incident>(`/incidents/${id}/status`, {
     method: 'PATCH',
     body: { status } satisfies UpdateIncidentStatusRequest,
+    token,
+  });
+}
+
+export async function getIncidentAudit(id: string, token: string): Promise<AuditEvent[]> {
+  return apiRequest<AuditEvent[]>(`/incidents/${id}/audit`, {
+    method: 'GET',
     token,
   });
 }

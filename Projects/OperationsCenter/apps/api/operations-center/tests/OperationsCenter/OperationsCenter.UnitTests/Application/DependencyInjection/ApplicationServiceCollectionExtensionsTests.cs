@@ -142,6 +142,13 @@ public sealed class ApplicationServiceCollectionExtensionsTests
             return Task.FromResult<User?>(null);
         }
 
+        public Task<IReadOnlyDictionary<Guid, string>> GetUserEmailsByIdsAsync(
+            IReadOnlyCollection<Guid> userIds,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+        }
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult(0);
