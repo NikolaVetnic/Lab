@@ -1,15 +1,20 @@
 using BuildingBlocks.Cqrs.Abstractions;
 using System.Text.Json;
 using OperationsCenter.Application.Incidents.Contracts;
+using OperationsCenter.Application.Incidents.Realtime;
 using OperationsCenter.Application.Persistence;
+using OperationsCenter.Contracts.Realtime;
 using OperationsCenter.Domain.Audit;
 
 namespace OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
 
-public sealed class UpdateIncidentStatusCommandHandler(IOperationsCenterDbContext dbContext)
+public sealed class UpdateIncidentStatusCommandHandler(
+    IOperationsCenterDbContext dbContext,
+    IIncidentRealTimeNotifier realTimeNotifier)
     : ICommandHandler<UpdateIncidentStatusCommand, UpdateIncidentStatusResult>
 {
     private readonly IOperationsCenterDbContext _dbContext = dbContext;
+    private readonly IIncidentRealTimeNotifier _realTimeNotifier = realTimeNotifier;
 
     public async Task<UpdateIncidentStatusResult> Handle(UpdateIncidentStatusCommand request, CancellationToken cancellationToken)
     {
@@ -41,6 +46,14 @@ public sealed class UpdateIncidentStatusCommandHandler(IOperationsCenterDbContex
 
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var statusChangedMessage = new IncidentStatusChangedMessage(
+            incident.Id,
+            previousStatus.ToString(),
+            incident.Status.ToString(),
+            DateTimeOffset.UtcNow);
+
+        await _realTimeNotifier.IncidentStatusChangedAsync(statusChangedMessage, cancellationToken);
 
         var response = new IncidentResponse(
             incident.Id,

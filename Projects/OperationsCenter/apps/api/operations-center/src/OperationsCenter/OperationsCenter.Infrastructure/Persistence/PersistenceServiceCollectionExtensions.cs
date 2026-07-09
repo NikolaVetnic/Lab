@@ -63,6 +63,23 @@ public static class PersistenceServiceCollectionExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
                     ClockSkew = TimeSpan.FromSeconds(30)
                 };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var requestPath = context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrWhiteSpace(accessToken)
+                            && requestPath.StartsWithSegments("/hubs/operations"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         services.AddAuthorizationBuilder()

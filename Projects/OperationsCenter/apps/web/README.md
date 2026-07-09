@@ -68,10 +68,11 @@ Included:
 - incident details page with not-found/auth/error states
 - incident details status updates with backend-enforced transitions
 - incident details audit timeline with status-change metadata rendering
+- SignalR live updates for incident create/status changes
+- non-blocking live connection status indicator
 
 Not included yet:
 
 - refresh tokens
-- SignalR or real-time updates
 - dashboards/charts
 - notifications

@@ -1,7 +1,9 @@
 using System.Text.Json;
 using OperationsCenter.Application.Incidents.Commands.CreateIncident;
+using OperationsCenter.Application.Incidents.Realtime;
 using OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
 using OperationsCenter.Application.Persistence;
+using OperationsCenter.Contracts.Realtime;
 using OperationsCenter.Domain.Audit;
 using OperationsCenter.Domain.Identity;
 using OperationsCenter.Domain.Incidents;
@@ -14,7 +16,8 @@ public sealed class IncidentAuditCommandHandlerTests
     public async Task CreateIncidentCommandHandler_WhenIncidentIsCreated_WritesCreatedAuditEvent()
     {
         var dbContext = new FakeOperationsCenterDbContext();
-        var handler = new CreateIncidentCommandHandler(dbContext);
+        var notifier = new FakeIncidentRealTimeNotifier();
+        var handler = new CreateIncidentCommandHandler(dbContext, notifier);
         var actorUserId = Guid.NewGuid();
 
         var command = new CreateIncidentCommand("Audit create", "Create audit event", IncidentSeverity.Medium, actorUserId);
@@ -28,6 +31,27 @@ public sealed class IncidentAuditCommandHandlerTests
         Assert.Equal("Created", auditEvent.Action);
         Assert.Equal(actorUserId.ToString("D"), auditEvent.ActorId);
         Assert.Null(auditEvent.MetadataJson);
+
+        IncidentCreatedMessage published = Assert.Single(notifier.CreatedMessages);
+        Assert.Equal(response.Id, published.IncidentId);
+    }
+
+    [Fact]
+    public async Task CreateIncidentCommandHandler_WhenPersistenceFails_DoesNotPublishRealtimeNotification()
+    {
+        var dbContext = new FakeOperationsCenterDbContext
+        {
+            ThrowOnSaveChanges = true
+        };
+        var notifier = new FakeIncidentRealTimeNotifier();
+        var handler = new CreateIncidentCommandHandler(dbContext, notifier);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(
+                new CreateIncidentCommand("Create fail", "Save should fail", IncidentSeverity.Medium, Guid.NewGuid()),
+                CancellationToken.None));
+
+        Assert.Empty(notifier.CreatedMessages);
     }
 
     [Fact]
@@ -35,7 +59,8 @@ public sealed class IncidentAuditCommandHandlerTests
     {
         var incident = Incident.Create("Audit status", "Status change", IncidentSeverity.High, Guid.NewGuid());
         var dbContext = new FakeOperationsCenterDbContext(incident);
-        var handler = new UpdateIncidentStatusCommandHandler(dbContext);
+        var notifier = new FakeIncidentRealTimeNotifier();
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
         var actorUserId = Guid.NewGuid();
 
         var command = new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.InProgress, actorUserId);
@@ -53,11 +78,68 @@ public sealed class IncidentAuditCommandHandlerTests
         using JsonDocument metadata = JsonDocument.Parse(auditEvent.MetadataJson);
         Assert.Equal("Open", metadata.RootElement.GetProperty("oldStatus").GetString());
         Assert.Equal("InProgress", metadata.RootElement.GetProperty("newStatus").GetString());
+
+        IncidentStatusChangedMessage published = Assert.Single(notifier.StatusChangedMessages);
+        Assert.Equal(incident.Id, published.IncidentId);
+        Assert.Equal("Open", published.PreviousStatus);
+        Assert.Equal("InProgress", published.NewStatus);
+    }
+
+    [Fact]
+    public async Task UpdateIncidentStatusCommandHandler_WhenTransitionIsInvalid_DoesNotPublishRealtimeNotification()
+    {
+        var incident = Incident.Create("Audit status", "Invalid transition", IncidentSeverity.High, Guid.NewGuid());
+        var dbContext = new FakeOperationsCenterDbContext(incident);
+        var notifier = new FakeIncidentRealTimeNotifier();
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
+
+        UpdateIncidentStatusResult result = await handler.Handle(
+            new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.Closed, Guid.NewGuid()),
+            CancellationToken.None);
+
+        Assert.Equal(UpdateIncidentStatusOutcome.InvalidTransition, result.Outcome);
+        Assert.Empty(notifier.StatusChangedMessages);
+    }
+
+    [Fact]
+    public async Task UpdateIncidentStatusCommandHandler_WhenIncidentDoesNotExist_DoesNotPublishRealtimeNotification()
+    {
+        var dbContext = new FakeOperationsCenterDbContext();
+        var notifier = new FakeIncidentRealTimeNotifier();
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
+
+        UpdateIncidentStatusResult result = await handler.Handle(
+            new UpdateIncidentStatusCommand(Guid.NewGuid(), IncidentStatus.InProgress, Guid.NewGuid()),
+            CancellationToken.None);
+
+        Assert.Equal(UpdateIncidentStatusOutcome.NotFound, result.Outcome);
+        Assert.Empty(notifier.StatusChangedMessages);
+    }
+
+    [Fact]
+    public async Task UpdateIncidentStatusCommandHandler_WhenPersistenceFails_DoesNotPublishRealtimeNotification()
+    {
+        var incident = Incident.Create("Audit status", "Save fail", IncidentSeverity.High, Guid.NewGuid());
+        var dbContext = new FakeOperationsCenterDbContext(incident)
+        {
+            ThrowOnSaveChanges = true
+        };
+        var notifier = new FakeIncidentRealTimeNotifier();
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(
+                new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.InProgress, Guid.NewGuid()),
+                CancellationToken.None));
+
+        Assert.Empty(notifier.StatusChangedMessages);
     }
 
     private sealed class FakeOperationsCenterDbContext(Incident? existingIncident = null) : IOperationsCenterDbContext
     {
         private readonly Incident? _existingIncident = existingIncident;
+
+        public bool ThrowOnSaveChanges { get; init; }
 
         public List<AuditEvent> AuditEvents { get; } = [];
 
@@ -125,7 +207,31 @@ public sealed class IncidentAuditCommandHandlerTests
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken)
         {
+            if (ThrowOnSaveChanges)
+            {
+                throw new InvalidOperationException("Simulated persistence failure.");
+            }
+
             return Task.FromResult(1);
+        }
+    }
+
+    private sealed class FakeIncidentRealTimeNotifier : IIncidentRealTimeNotifier
+    {
+        public List<IncidentCreatedMessage> CreatedMessages { get; } = [];
+
+        public List<IncidentStatusChangedMessage> StatusChangedMessages { get; } = [];
+
+        public Task IncidentCreatedAsync(IncidentCreatedMessage message, CancellationToken cancellationToken)
+        {
+            CreatedMessages.Add(message);
+            return Task.CompletedTask;
+        }
+
+        public Task IncidentStatusChangedAsync(IncidentStatusChangedMessage message, CancellationToken cancellationToken)
+        {
+            StatusChangedMessages.Add(message);
+            return Task.CompletedTask;
         }
     }
 }

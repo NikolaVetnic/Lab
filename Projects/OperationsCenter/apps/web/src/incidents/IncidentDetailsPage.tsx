@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../api/apiClient';
 import {
@@ -13,6 +13,7 @@ import {
   updateIncidentStatus,
 } from '../api/incidentsApi';
 import { useAuth } from '../auth/AuthContext';
+import { useOperationsRealtime } from '../realtime/useOperationsRealtime';
 
 interface AuditMetadata {
   oldStatus?: string;
@@ -27,6 +28,7 @@ function formatDate(value: string): string {
 export function IncidentDetailsPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { accessToken, logout } = useAuth();
+  const { subscribeIncidentStatusChanged } = useOperationsRealtime();
 
   const [incident, setIncident] = useState<Incident | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,43 +41,42 @@ export function IncidentDetailsPage(): JSX.Element {
   const [isAuditLoading, setIsAuditLoading] = useState(true);
   const [auditErrorMessage, setAuditErrorMessage] = useState<string | null>(null);
 
-  const loadIncidentAudit = async (
-    incidentId: string,
-    token: string,
-    isCancelled: boolean,
-  ): Promise<void> => {
-    setIsAuditLoading(true);
-    setAuditErrorMessage(null);
+  const loadIncidentAudit = useCallback(
+    async (incidentId: string, token: string, isCancelled: boolean): Promise<void> => {
+      setIsAuditLoading(true);
+      setAuditErrorMessage(null);
 
-    try {
-      const response = await getIncidentAudit(incidentId, token);
-      if (!isCancelled) {
-        const ordered = [...response].sort(
-          (a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
-        );
-        setAuditEvents(ordered);
-      }
-    } catch (error) {
-      if (isCancelled) {
-        return;
-      }
+      try {
+        const response = await getIncidentAudit(incidentId, token);
+        if (!isCancelled) {
+          const ordered = [...response].sort(
+            (a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
+          );
+          setAuditEvents(ordered);
+        }
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
 
-      if (error instanceof ApiError && error.kind === 'unauthorized') {
-        logout();
-        setAuditErrorMessage('Your session has expired. Please sign in again.');
-      } else if (error instanceof ApiError && error.kind === 'forbidden') {
-        setAuditErrorMessage('You do not have permission to view incident audit history.');
-      } else if (error instanceof ApiError && error.status === 404) {
-        setAuditErrorMessage('Incident audit history was not found.');
-      } else {
-        setAuditErrorMessage('Failed to load incident audit history.');
+        if (error instanceof ApiError && error.kind === 'unauthorized') {
+          logout();
+          setAuditErrorMessage('Your session has expired. Please sign in again.');
+        } else if (error instanceof ApiError && error.kind === 'forbidden') {
+          setAuditErrorMessage('You do not have permission to view incident audit history.');
+        } else if (error instanceof ApiError && error.status === 404) {
+          setAuditErrorMessage('Incident audit history was not found.');
+        } else {
+          setAuditErrorMessage('Failed to load incident audit history.');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsAuditLoading(false);
+        }
       }
-    } finally {
-      if (!isCancelled) {
-        setIsAuditLoading(false);
-      }
-    }
-  };
+    },
+    [logout],
+  );
 
   const parseAuditMetadata = (metadataJson: string | null): AuditMetadata | null => {
     if (!metadataJson) {
@@ -176,7 +177,45 @@ export function IncidentDetailsPage(): JSX.Element {
     return () => {
       isCancelled = true;
     };
-  }, [id, accessToken, logout]);
+  }, [id, accessToken, logout, loadIncidentAudit]);
+
+  useEffect(() => {
+    if (!id || !accessToken) {
+      return;
+    }
+
+    const normalizedIncidentId = id.toLowerCase();
+
+    const unsubscribe = subscribeIncidentStatusChanged((message) => {
+      if (message.incidentId.toLowerCase() !== normalizedIncidentId) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          const refreshedIncident = await getIncidentById(id, accessToken);
+          setIncident(refreshedIncident);
+          setSelectedStatus(refreshedIncident.status as IncidentStatus);
+          await loadIncidentAudit(id, accessToken, false);
+        } catch (error) {
+          if (error instanceof ApiError && error.kind === 'unauthorized') {
+            logout();
+            setErrorMessage('Your session has expired. Please sign in again.');
+          } else if (error instanceof ApiError && error.kind === 'forbidden') {
+            setErrorMessage('You are not allowed to view this incident.');
+          } else if (error instanceof ApiError && error.status === 404) {
+            setErrorMessage('Incident not found.');
+          } else {
+            setErrorMessage('Failed to refresh incident details.');
+          }
+        }
+      })();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [id, accessToken, logout, subscribeIncidentStatusChanged, loadIncidentAudit]);
 
   if (isLoading) {
     return <p>Loading incident details...</p>;

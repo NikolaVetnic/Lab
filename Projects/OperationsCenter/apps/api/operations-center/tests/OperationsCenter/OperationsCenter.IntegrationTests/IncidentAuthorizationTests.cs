@@ -29,6 +29,21 @@ public sealed class IncidentAuthorizationTests(IntegrationTestWebApplicationFact
     }
 
     [Fact]
+    public async Task OperationsHubNegotiate_WhenUnauthenticated_ReturnsUnauthorized()
+    {
+        using var client = factory.CreateClient();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/hubs/operations/negotiate?negotiateVersion=1")
+        {
+            Content = new StringContent(string.Empty)
+        };
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateIncident_WhenUserIsViewer_ReturnsForbidden()
     {
         using var client = await IntegrationTestAuthHelper.CreateAuthenticatedClientAsync(

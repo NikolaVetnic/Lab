@@ -3,6 +3,22 @@ import { Link } from 'react-router-dom';
 import { ApiError } from '../api/apiClient';
 import { type Incident, listIncidents, severityLabels, statusLabels } from '../api/incidentsApi';
 import { useAuth } from '../auth/AuthContext';
+import { useOperationsRealtime } from '../realtime/useOperationsRealtime';
+
+const severityNameToValue: Record<string, number> = {
+  Low: 1,
+  Medium: 2,
+  High: 3,
+  Critical: 4,
+};
+
+const statusNameToValue: Record<string, number> = {
+  Open: 1,
+  InProgress: 2,
+  'In Progress': 2,
+  Resolved: 3,
+  Closed: 4,
+};
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -11,6 +27,7 @@ function formatDate(value: string): string {
 
 export function IncidentsPage(): JSX.Element {
   const { accessToken, logout } = useAuth();
+  const { subscribeIncidentCreated, subscribeIncidentStatusChanged } = useOperationsRealtime();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -63,6 +80,52 @@ export function IncidentsPage(): JSX.Element {
       isCancelled = true;
     };
   }, [accessToken, logout]);
+
+  useEffect(() => {
+    const unsubscribeCreated = subscribeIncidentCreated((message) => {
+      setIncidents((current) => {
+        if (current.some((incident) => incident.id === message.incidentId)) {
+          return current;
+        }
+
+        const severity = severityNameToValue[message.severity];
+        const status = statusNameToValue[message.status];
+
+        if (!severity || !status) {
+          return current;
+        }
+
+        const createdIncident: Incident = {
+          id: message.incidentId,
+          title: message.title,
+          description: null,
+          severity,
+          status,
+          createdAt: message.createdAt,
+        };
+
+        return [createdIncident, ...current];
+      });
+    });
+
+    const unsubscribeStatusChanged = subscribeIncidentStatusChanged((message) => {
+      setIncidents((current) => {
+        const updatedStatus = statusNameToValue[message.newStatus];
+        if (!updatedStatus) {
+          return current;
+        }
+
+        return current.map((incident) =>
+          incident.id === message.incidentId ? { ...incident, status: updatedStatus } : incident,
+        );
+      });
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeStatusChanged();
+    };
+  }, [subscribeIncidentCreated, subscribeIncidentStatusChanged]);
 
   if (isLoading) {
     return (
