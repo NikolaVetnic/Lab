@@ -30,8 +30,7 @@ const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 
 function getBaseUrl(): string {
   if (import.meta.env.DEV) {
-    // In development, route through the Vite proxy (/api) so login works even
-    // when no local .env is present.
+    // In development, route through the Vite proxy (/api) so login works even when no local .env is present.
     return '/api';
   }
 
