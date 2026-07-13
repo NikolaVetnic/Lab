@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: operations_center_ci
+          POSTGRES_USER: operations_center_ci
+          POSTGRES_PASSWORD: operations_center_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U operations_center_ci -d operations_center_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      SOLUTION_PATH: apps/api/operations-center/OperationsCenter.slnx
+      TEST_RESULTS_DIR: artifacts/test-results/backend
+      ConnectionStrings__OperationsCenterDatabase: Host=localhost;Port=5432;Database=operations_center_ci;Username=operations_center_ci;Password=operations_center_ci
+      OPERATIONS_CENTER_TEST_DB_NAME: operations_center_integration_ci
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore backend dependencies
+        run: dotnet restore "$SOLUTION_PATH"
+
+      - name: Verify backend formatting
+        run: dotnet format "$SOLUTION_PATH" --verify-no-changes --no-restore
+
+      - name: Build backend
+        run: dotnet build "$SOLUTION_PATH" --configuration Release --no-restore
+
+      - name: Run backend tests
+        run: >-
+          dotnet test "$SOLUTION_PATH"
+          --configuration Release
+          --no-build
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFilePrefix=test-results"
+          --results-directory "$TEST_RESULTS_DIR"
+
+      - name: Upload backend test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: artifacts/test-results/backend
+          if-no-files-found: ignore
+          retention-days: 10
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify frontend formatting
+        run: npm run format:check
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - backend
+      - frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/operations-center/Dockerfile
+          push: false
+          tags: operations-center-api:ci
+          cache-from: type=gha,scope=operations-center-api
+          cache-to: type=gha,mode=max,scope=operations-center-api
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/web
+          file: apps/web/Dockerfile
+          push: false
+          tags: operations-center-web:ci
+          cache-from: type=gha,scope=operations-center-web
+          cache-to: type=gha,mode=max,scope=operations-center-web

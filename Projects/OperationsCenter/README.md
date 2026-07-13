@@ -1,5 +1,7 @@
 # Operations Center
 
+[![CI](https://github.com/NikolaVetnic/Lab/actions/workflows/ci.yml/badge.svg)](https://github.com/NikolaVetnic/Lab/actions/workflows/ci.yml)
+
 Operations Center er et porteføljeprosjekt for en moderne plattform som hjelper organisasjoner med å håndtere hendelser, oppgaver, varsler og sanntidsinformasjon.
 
 Prosjektet bygges som en modulær monolitt først, med tydelige modulgrenser som gjør det mulig å trekke ut separate mikrotjenester senere når det er et reelt behov.
@@ -18,6 +20,18 @@ Prosjektet skal demonstrere erfaring med:
 - Observability med OpenTelemetry, Prometheus og Grafana
 - Kubernetes, Helm og Terraform
 - Produksjonsrettet sikkerhet, logging og revisjonsspor
+
+## Continuous Integration
+
+CI-workflowen kjører på push til `main`, pull requests mot `main`, og manuelt via `workflow_dispatch`.
+
+Den validerer:
+
+- backend-formattering, build og tester
+- frontend-formattering, linting og produksjonsbuild
+- Docker-build av API- og frontend-images uten publisering
+
+Pull requests skal passere CI før de merges.
 
 ## Planlagt funksjonalitet
 
