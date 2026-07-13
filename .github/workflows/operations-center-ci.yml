@@ -47,6 +47,7 @@ jobs:
           --health-retries 12
     env:
       SOLUTION_PATH: Projects/OperationsCenter/apps/api/operations-center/OperationsCenter.slnx
+      SOLUTION_DIR: Projects/OperationsCenter/apps/api/operations-center
       TEST_RESULTS_DIR: Projects/OperationsCenter/artifacts/test-results/backend
       ConnectionStrings__OperationsCenterDatabase: Host=localhost;Port=5432;Database=operations_center_ci;Username=operations_center_ci;Password=operations_center_ci
       OPERATIONS_CENTER_TEST_DB_NAME: operations_center_integration_ci
@@ -58,6 +59,16 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
+      - name: Build internal NuGet packages
+        run: |
+          mkdir -p "$SOLUTION_DIR/artifacts/packages"
+          dotnet pack "$SOLUTION_DIR/src/BuildingBlocks/BuildingBlocks.Cqrs.Abstractions/BuildingBlocks.Cqrs.Abstractions.csproj" \
+            --configuration Release \
+            --output "$SOLUTION_DIR/artifacts/packages"
+          dotnet pack "$SOLUTION_DIR/src/BuildingBlocks/BuildingBlocks.Cqrs/BuildingBlocks.Cqrs.csproj" \
+            --configuration Release \
+            --output "$SOLUTION_DIR/artifacts/packages"
 
       - name: Restore backend dependencies
         run: dotnet restore "$SOLUTION_PATH"
