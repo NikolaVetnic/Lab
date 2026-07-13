@@ -19,6 +19,11 @@ builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IIncidentRealTimeNotifier, SignalRIncidentRealTimeNotifier>();
 
+if (await builder.TryRunMigrationAsync(args))
+{
+    return;
+}
+
 if (await builder.TryRunDevelopmentSeedAsync(args))
 {
     return;

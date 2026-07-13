@@ -2,6 +2,7 @@
   "name": "operations-center",
   "private": true,
   "scripts": {
+    "smoke:compose": "./scripts/smoke-compose.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "bom:fix": "./scripts/remove-bom.sh",

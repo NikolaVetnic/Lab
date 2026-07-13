@@ -36,7 +36,7 @@ function getBaseUrl(): string {
   }
 
   if (!configuredBaseUrl) {
-    throw new ApiError('Missing VITE_API_BASE_URL.', 'config');
+    return '/api';
   }
 
   return configuredBaseUrl.replace(/\/+$/, '');

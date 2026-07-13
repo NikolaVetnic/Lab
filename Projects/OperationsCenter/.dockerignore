@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+
+**/bin
+**/obj
+**/TestResults
+**/node_modules
+**/dist
+**/coverage
+
+temp/
+tmp/

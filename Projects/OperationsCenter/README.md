@@ -113,47 +113,150 @@ Databaser, autentisering, Docker, frontend, SignalR og meldingskøer introdusere
 
 Krav:
 
-- .NET SDK
-- Node.js, når frontend opprettes
-- Docker Desktop eller tilsvarende, når PostgreSQL og øvrige lokale tjenester introduseres
+- Docker Desktop eller tilsvarende for containerisert kjøring
+- .NET SDK 10 for lokal backend-kjøring uten containere
+- Node.js 20+ for lokal frontend-kjøring uten containere
 
-## Lokal PostgreSQL for backend
+## Containerisert lokal miljø
 
-PostgreSQL for lokal utvikling ligger i docker-compose-fil på repository-roten.
+Hele løsningen kan startes lokalt med én kommando.
 
-Start database:
+Opprett lokal miljøfil:
 
 ```bash
-docker compose up -d
+cp .env.example .env
 ```
 
-Stopp database:
+Start full stack:
+
+```bash
+docker compose up --build
+```
+
+Kjør i bakgrunnen:
+
+```bash
+docker compose up --build -d
+```
+
+Stopp containere:
 
 ```bash
 docker compose down
 ```
 
+Stopp og fjern databasen volum bevisst:
+
+```bash
+docker compose down -v
+```
+
+Bygg images på nytt uten å starte:
+
+```bash
+docker compose build
+```
+
+Vis containerstatus:
+
+```bash
+docker compose ps
+```
+
+Vis logger:
+
+```bash
+docker compose logs -f operations-center-api
+docker compose logs -f operations-center-web
+docker compose logs -f operations-center-migrations
+```
+
+Kjør en enkel Compose smoke test:
+
+```bash
+npm run smoke:compose
+```
+
+Smoke-testen bygger og starter stacken, verifiserer health/readiness, sjekker at migreringscontaineren fullfører, logger inn med seed-brukeren via frontend-originet, leser incident-listen, oppretter en incident, oppdaterer status, verifiserer audit-loggen, tester SignalR negotiate via `/hubs/operations`, og bekrefter at SPA deep-link fallback fungerer.
+
+For å beholde containerne oppe etter testen ved feilsøking:
+
+```bash
+SMOKE_KEEP_STACK=1 npm run smoke:compose
+```
+
+Eksponerte lokale adresser i Compose-oppsettet:
+
+- Frontend: `http://localhost:8080`
+- API health: `http://localhost:5000/health`
+- API readiness: `http://localhost:5000/ready`
+- Swagger UI: `http://localhost:5000/swagger`
+- OpenAPI JSON: `http://localhost:5000/openapi/v1.json`
+- PostgreSQL: `localhost:5432`
+
+Compose starter disse tjenestene:
+
+- `operations-center-postgres`
+- `operations-center-migrations`
+- `operations-center-api`
+- `operations-center-web`
+
+Oppstartsrekkefølge:
+
+1. PostgreSQL blir healthy.
+2. `operations-center-migrations` kjører eksisterende Development seed-modus, som først anvender EF Core-migrasjoner og deretter seed-er demo-brukere og incidents idempotent.
+3. API-et starter etter at seed/migrasjonstjenesten er ferdig.
+4. Frontenden starter etter at API-et er healthy.
+
+Browser-trafikk går mot frontend-originet på `http://localhost:8080`. Nginx i web-containeren reverse proxy-er `/api/*` og `/hubs/*` til API-containeren, inkludert WebSocket-oppgraderinger for SignalR. Dette gjør at frontend kan bruke relative URL-er i containerisert kjøring uten å bake inn `localhost`-avhengigheter i produksjonsbygget.
+
+Compose-oppsettet er kun for lokal utvikling og porteføljedemo. Secrets ligger utenfor images og source control: Dockerfiles inneholder ingen connection strings eller nøkler, og Compose leser lokale verdier fra `.env`.
+
+Standard seed-brukere i Compose:
+
+- `admin@operations-center.local`
+- `operator@operations-center.local`
+- `viewer@operations-center.local`
+
+Passord styres av `DEV_SEED_ADMIN_PASSWORD`, `DEV_SEED_OPERATOR_PASSWORD` og `DEV_SEED_VIEWER_PASSWORD` i `.env`.
+
+## Lokal kjøring uten containere
+
 Connection string-navn som brukes av API-et:
 
 - `ConnectionStrings:OperationsCenterDatabase`
 
-Standard lokal konfigurasjon er satt i `appsettings.Development.json` for API-prosjektet.
-
 Eksempel på miljøvariabler for lokal kjøring ligger i `.env.example`.
 
-For nåværende løsning under `apps/api/operations-center`:
+Start kun PostgreSQL i Docker:
+
+```bash
+docker compose up -d operations-center-postgres
+```
+
+Start API lokalt med migrasjoner:
+
+```bash
+./scripts/start-api.sh
+```
+
+Start frontend og API lokalt:
+
+```bash
+./scripts/start-web.sh
+```
+
+Direktekommandoer er fortsatt tilgjengelige:
 
 ```bash
 cd apps/api/operations-center
 dotnet run --project src/OperationsCenter/OperationsCenter.Api
+
+cd apps/web
+npm run dev
 ```
 
-Når API-et kjører i Development, er dokumentasjon tilgjengelig på:
-
-- Swagger UI: `https://localhost:7xxx/swagger`
-- OpenAPI JSON: `https://localhost:7xxx/openapi/v1.json`
-
-Merk: Eksakt port vises i oppstart-logger og i `launchSettings.json` for API-prosjektet.
+Når API-et kjører lokalt i Development, er standard HTTP-port `http://localhost:5000` i `launchSettings.json`.
 
 ## Identity, JWT og roller
 
@@ -189,6 +292,8 @@ Scriptet:
 - starter lokal PostgreSQL-container (`operations-center-postgres`) om nødvendig
 - venter til databasen er klar
 - kjører API i eksplisitt seed-modus: `dotnet run --project src/OperationsCenter.Api -- --seed`
+
+Det samme seed-løpet brukes av `operations-center-migrations` i Docker Compose for å gjøre en ren lokal database innloggingsklar og demo-klar uten ekstra manuelle steg.
 
 I seed-modus opprettes også idempotente utviklingsbrukere:
 

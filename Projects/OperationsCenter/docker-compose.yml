@@ -4,13 +4,78 @@ services:
     container_name: operations-center-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: operations_center
-      POSTGRES_USER: operations_center
-      POSTGRES_PASSWORD: operations_center
+      POSTGRES_DB: ${POSTGRES_DB:-operations_center}
+      POSTGRES_USER: ${POSTGRES_USER:-operations_center}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-operations_center}
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - operations-center-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  operations-center-migrations:
+    image: operations-center-api:local
+    build:
+      context: .
+      dockerfile: apps/api/operations-center/Dockerfile
+    container_name: operations-center-migrations
+    depends_on:
+      operations-center-postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: ${ASPNETCORE_URLS:-http://+:8080}
+      ConnectionStrings__OperationsCenterDatabase: Host=operations-center-postgres;Port=5432;Database=${POSTGRES_DB:-operations_center};Username=${POSTGRES_USER:-operations_center};Password=${POSTGRES_PASSWORD:-operations_center}
+      Jwt__Issuer: ${Jwt__Issuer:-OperationsCenter.Dev}
+      Jwt__Audience: ${Jwt__Audience:-OperationsCenter.Api}
+      Jwt__SigningKey: ${Jwt__SigningKey:-development-only-signing-key-change-me}
+      Jwt__AccessTokenExpiryMinutes: ${Jwt__AccessTokenExpiryMinutes:-180}
+      DEV_SEED_ADMIN_PASSWORD: ${DEV_SEED_ADMIN_PASSWORD:-Admin123!}
+      DEV_SEED_OPERATOR_PASSWORD: ${DEV_SEED_OPERATOR_PASSWORD:-Operator123!}
+      DEV_SEED_VIEWER_PASSWORD: ${DEV_SEED_VIEWER_PASSWORD:-Viewer123!}
+    command: ['--seed']
+    restart: 'no'
+
+  operations-center-api:
+    image: operations-center-api:local
+    build:
+      context: .
+      dockerfile: apps/api/operations-center/Dockerfile
+    container_name: operations-center-api
+    restart: unless-stopped
+    depends_on:
+      operations-center-postgres:
+        condition: service_healthy
+      operations-center-migrations:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: ${ASPNETCORE_URLS:-http://+:8080}
+      ConnectionStrings__OperationsCenterDatabase: Host=operations-center-postgres;Port=5432;Database=${POSTGRES_DB:-operations_center};Username=${POSTGRES_USER:-operations_center};Password=${POSTGRES_PASSWORD:-operations_center}
+      Jwt__Issuer: ${Jwt__Issuer:-OperationsCenter.Dev}
+      Jwt__Audience: ${Jwt__Audience:-OperationsCenter.Api}
+      Jwt__SigningKey: ${Jwt__SigningKey:-development-only-signing-key-change-me}
+      Jwt__AccessTokenExpiryMinutes: ${Jwt__AccessTokenExpiryMinutes:-180}
+    ports:
+      - '${API_PORT:-5000}:8080'
+
+  operations-center-web:
+    image: operations-center-web:local
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: operations-center-web
+    restart: unless-stopped
+    depends_on:
+      operations-center-api:
+        condition: service_healthy
+    ports:
+      - '${WEB_PORT:-8080}:80'
 
 volumes:
   operations-center-postgres-data:
