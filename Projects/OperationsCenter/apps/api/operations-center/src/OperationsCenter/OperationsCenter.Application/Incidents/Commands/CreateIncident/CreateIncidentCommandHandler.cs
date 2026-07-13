@@ -1,6 +1,7 @@
 using BuildingBlocks.Cqrs.Abstractions;
 using OperationsCenter.Application.Incidents.Contracts;
 using OperationsCenter.Application.Incidents.Realtime;
+using OperationsCenter.Application.Observability;
 using OperationsCenter.Application.Persistence;
 using OperationsCenter.Contracts.Realtime;
 using OperationsCenter.Domain.Audit;
@@ -18,7 +19,14 @@ public sealed class CreateIncidentCommandHandler(
 
     public async Task<IncidentResponse> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
     {
+        using var activity = OperationsCenterTelemetry.ActivitySource.StartActivity(
+            OperationsCenterTelemetry.IncidentCreateActivityName);
+
         Incident incident = Incident.Create(request.Title, request.Description, request.Severity, request.ActorUserId);
+
+        activity?.SetTag("incident.id", incident.Id);
+        activity?.SetTag("incident.severity", incident.Severity.ToString());
+
         AuditEvent auditEvent = AuditEvent.Create(
             entityType: "Incident",
             entityId: incident.Id,
@@ -28,6 +36,8 @@ public sealed class CreateIncidentCommandHandler(
         await _dbContext.AddIncidentAsync(incident, cancellationToken);
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        OperationsCenterTelemetry.RecordIncidentCreated(incident.Severity.ToString());
 
         var createdMessage = new IncidentCreatedMessage(
             incident.Id,

@@ -326,6 +326,74 @@ Viktig for tester:
 - Integration-tester må opprette egne testdata
 - tester skal ikke være avhengige av seedede incidents
 
+## Observability (OpenTelemetry)
+
+Backend-et er instrumentert med OpenTelemetry som leverandørnøytral standard for traces, metrics og logg-korrelasjon. Telemetri eksporteres via OTLP mot en OpenTelemetry Collector som introduseres senere. Applikasjonskoden er ikke koblet mot Grafana, Prometheus, Jaeger, Application Insights eller andre leverandører.
+
+### Hva instrumenteres
+
+Automatisk instrumentering:
+
+- innkommende HTTP-forespørsler (ASP.NET Core) — health-rutene `/health` og `/ready` er ekskludert fra traces for å redusere støy
+- utgående HTTP-kall (`HttpClient`)
+- PostgreSQL-kommandoer via Npgsql sin `ActivitySource` (parametriserte SQL-setninger uten parameterverdier eller connection strings)
+- .NET runtime-metrikker (GC, threads, med mer)
+- ASP.NET Core- og HttpClient-metrikker
+
+Prosess-metrikker (`OpenTelemetry.Instrumentation.Process`) er utelatt inntil videre fordi kun en prerelease-pakke finnes, og prosjektet bruker bevisst ingen preview-avhengigheter.
+
+Egendefinerte aktiviteter (én delt `ActivitySource` med navn `OperationsCenter`):
+
+- `incident.create` — tagger: `incident.id`, `incident.severity`
+- `incident.status_change` — tagger: `incident.id`, `incident.previous_status`, `incident.new_status`
+
+Egendefinerte metrikker (én delt `Meter` med navn `OperationsCenter`):
+
+- `operations_center.incidents.created` — teller, økes først etter at en incident er persistert; tag `severity`
+- `operations_center.incidents.status_changes` — teller, økes først etter en vellykket statusovergang; tagger `previous_status` og `new_status`
+
+Metrikk-tagger holdes bevisst lav-kardinale. Incident-ID-er, bruker-ID-er og e-poster brukes aldri som metrikk-labels.
+
+### Logging
+
+Eksisterende `ILogger<T>`-basert strukturert logging beholdes uendret. Når telemetri er aktivert legges OpenTelemetry sin logg-provider til slik at logger som skapes innenfor et aktivt trace får trace- og span-korrelasjon. Konsoll-provideren beholdes, og OpenTelemetry-loggene eksporteres kun via OTLP, så det oppstår ingen duplisert konsoll-utskrift. Sensitiv informasjon (tokens, passord, Authorization-headere, connection strings) logges aldri.
+
+### Konfigurasjon
+
+Telemetri styres av `OpenTelemetry`-seksjonen og kan overstyres med miljøvariabler:
+
+```json
+{
+  "OpenTelemetry": {
+    "Enabled": false,
+    "ServiceName": "operations-center-api",
+    "ServiceVersion": "1.0.0",
+    "OtlpEndpoint": "http://localhost:4317"
+  }
+}
+```
+
+Miljøvariabel-ekvivalenter:
+
+```bash
+OpenTelemetry__Enabled=true
+OpenTelemetry__ServiceName=operations-center-api
+OpenTelemetry__OtlpEndpoint=http://otel-collector:4317
+```
+
+Resource-attributter som settes: `service.name`, `service.version` og `deployment.environment` (avledet fra ASP.NET Core-miljøet).
+
+### Aktiver eller deaktiver lokalt
+
+- Eksport er som standard **deaktivert** (`OpenTelemetry__Enabled=false`) både i `appsettings.json`, `.env.example` og Docker Compose.
+- Sett `OpenTelemetry__Enabled=true` og pek `OpenTelemetry__OtlpEndpoint` mot en kjørende Collector for å aktivere eksport.
+- API-et starter og betjener trafikk normalt uansett om telemetri er av eller på.
+- En utilgjengelig Collector gjør **ikke** API-et eller health-rutene usunne; eksportfeil logges og forkastes uten å påvirke forespørsler.
+
+### Ikke inkludert enda
+
+OpenTelemetry Collector, Prometheus, Grafana, Tempo, Loki, Jaeger og trace-visualisering er ikke satt opp i dette steget. Collector introduseres senere; deretter kan traces, metrics og logger rutes til valgte backends.
+
 ## Agentinstruksjoner
 
 Prosjektet inneholder instruksjoner for AI-agenter og GitHub Copilot:
@@ -344,6 +412,7 @@ Viktige og langvarige tekniske beslutninger dokumenteres som Architecture Decisi
 Første dokumenterte ADR:
 
 - `0001-internal-mediator-cqrs.md` beskriver intern CQRS mediator-implementasjon uten ekstern MediatR-avhengighet.
+- `0002-opentelemetry-otlp-observability.md` beskriver bruk av OpenTelemetry med OTLP-eksport for leverandørnøytral observability.
 
 Backend-kode er nå gruppert slik:
 

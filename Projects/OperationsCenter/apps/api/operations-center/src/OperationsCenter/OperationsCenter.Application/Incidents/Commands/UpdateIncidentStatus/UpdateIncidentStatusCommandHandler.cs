@@ -2,6 +2,7 @@ using BuildingBlocks.Cqrs.Abstractions;
 using System.Text.Json;
 using OperationsCenter.Application.Incidents.Contracts;
 using OperationsCenter.Application.Incidents.Realtime;
+using OperationsCenter.Application.Observability;
 using OperationsCenter.Application.Persistence;
 using OperationsCenter.Contracts.Realtime;
 using OperationsCenter.Domain.Audit;
@@ -18,6 +19,11 @@ public sealed class UpdateIncidentStatusCommandHandler(
 
     public async Task<UpdateIncidentStatusResult> Handle(UpdateIncidentStatusCommand request, CancellationToken cancellationToken)
     {
+        using var activity = OperationsCenterTelemetry.ActivitySource.StartActivity(
+            OperationsCenterTelemetry.IncidentStatusChangeActivityName);
+
+        activity?.SetTag("incident.id", request.IncidentId);
+
         var incident = await _dbContext.GetIncidentByIdForUpdateAsync(request.IncidentId, cancellationToken);
         if (incident is null)
         {
@@ -30,6 +36,9 @@ public sealed class UpdateIncidentStatusCommandHandler(
         {
             return UpdateIncidentStatusResult.InvalidTransition;
         }
+
+        activity?.SetTag("incident.previous_status", previousStatus.ToString());
+        activity?.SetTag("incident.new_status", incident.Status.ToString());
 
         string metadataJson = JsonSerializer.Serialize(new
         {
@@ -46,6 +55,10 @@ public sealed class UpdateIncidentStatusCommandHandler(
 
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        OperationsCenterTelemetry.RecordIncidentStatusChanged(
+            previousStatus.ToString(),
+            incident.Status.ToString());
 
         var statusChangedMessage = new IncidentStatusChangedMessage(
             incident.Id,

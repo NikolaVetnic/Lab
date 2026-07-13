@@ -61,6 +61,12 @@ services:
       Jwt__Audience: ${Jwt__Audience:-OperationsCenter.Api}
       Jwt__SigningKey: ${Jwt__SigningKey:-development-only-signing-key-change-me}
       Jwt__AccessTokenExpiryMinutes: ${Jwt__AccessTokenExpiryMinutes:-180}
+      # Telemetry export is disabled by default. Set OpenTelemetry__Enabled=true only once an
+      # OpenTelemetry Collector is reachable at OpenTelemetry__OtlpEndpoint. The API stays up either way.
+      OpenTelemetry__Enabled: ${OpenTelemetry__Enabled:-false}
+      OpenTelemetry__ServiceName: ${OpenTelemetry__ServiceName:-operations-center-api}
+      OpenTelemetry__ServiceVersion: ${OpenTelemetry__ServiceVersion:-1.0.0}
+      OpenTelemetry__OtlpEndpoint: ${OpenTelemetry__OtlpEndpoint:-http://otel-collector:4317}
     ports:
       - '${API_PORT:-5000}:8080'
 

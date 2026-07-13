@@ -1,6 +1,7 @@
 using OperationsCenter.Api.Configuration;
 using OperationsCenter.Api.Hubs;
 using OperationsCenter.Api.Infrastructure;
+using OperationsCenter.Api.Observability;
 using OperationsCenter.Api.Realtime;
 using OperationsCenter.Application.DependencyInjection;
 using OperationsCenter.Application.Identity.Abstractions;
@@ -18,6 +19,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IIncidentRealTimeNotifier, SignalRIncidentRealTimeNotifier>();
+builder.Services.AddOperationsCenterObservability(builder.Configuration, builder.Logging, builder.Environment);
 
 if (await builder.TryRunMigrationAsync(args))
 {
