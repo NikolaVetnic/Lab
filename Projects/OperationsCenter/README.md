@@ -23,7 +23,7 @@ Prosjektet skal demonstrere erfaring med:
 
 ## Continuous Integration
 
-CI-workflowen kjører på push til `main`, pull requests mot `main`, og manuelt via `workflow_dispatch`.
+CI-workflowen kjører på push til `main` og pull requests mot `main` når endringer treffer dette prosjektets filer (`apps/api/operations-center/**`, `apps/web/**`, `NuGet.config` eller selve workflow-filen), samt manuelt via `workflow_dispatch`.
 
 Den validerer:
 
