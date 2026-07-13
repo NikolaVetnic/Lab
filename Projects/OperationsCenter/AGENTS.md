@@ -10,7 +10,7 @@ security, observability and maintainable architecture.
 
 ## Development approach
 
-- Start as a modular monolith, not microservices.
+- Start as a modular monolith, instead of as microservices.
 - Keep module boundaries explicit so modules can later be extracted into services.
 - Prefer vertical slices over large horizontal layers.
 - Build working functionality incrementally.
