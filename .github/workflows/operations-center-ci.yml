@@ -1,29 +1,29 @@
-name: CI
+name: Operations Center CI
 
 on:
   push:
     branches:
       - main
     paths:
-      - .github/workflows/ci.yml
-      - NuGet.config
-      - apps/api/operations-center/**
-      - apps/web/**
+      - .github/workflows/operations-center-ci.yml
+      - Projects/OperationsCenter/NuGet.config
+      - Projects/OperationsCenter/apps/api/operations-center/**
+      - Projects/OperationsCenter/apps/web/**
   pull_request:
     branches:
       - main
     paths:
-      - .github/workflows/ci.yml
-      - NuGet.config
-      - apps/api/operations-center/**
-      - apps/web/**
+      - .github/workflows/operations-center-ci.yml
+      - Projects/OperationsCenter/NuGet.config
+      - Projects/OperationsCenter/apps/api/operations-center/**
+      - Projects/OperationsCenter/apps/web/**
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: operations-center-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,8 +46,8 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     env:
-      SOLUTION_PATH: apps/api/operations-center/OperationsCenter.slnx
-      TEST_RESULTS_DIR: artifacts/test-results/backend
+      SOLUTION_PATH: Projects/OperationsCenter/apps/api/operations-center/OperationsCenter.slnx
+      TEST_RESULTS_DIR: Projects/OperationsCenter/artifacts/test-results/backend
       ConnectionStrings__OperationsCenterDatabase: Host=localhost;Port=5432;Database=operations_center_ci;Username=operations_center_ci;Password=operations_center_ci
       OPERATIONS_CENTER_TEST_DB_NAME: operations_center_integration_ci
     steps:
@@ -82,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
-          path: artifacts/test-results/backend
+          path: Projects/OperationsCenter/artifacts/test-results/backend
           if-no-files-found: ignore
           retention-days: 10
 
@@ -92,7 +92,7 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: apps/web
+        working-directory: Projects/OperationsCenter/apps/web
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -102,7 +102,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: Projects/OperationsCenter/apps/web/package-lock.json
 
       - name: Install frontend dependencies
         run: npm ci
@@ -133,8 +133,8 @@ jobs:
       - name: Build API image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: apps/api/operations-center/Dockerfile
+          context: Projects/OperationsCenter
+          file: Projects/OperationsCenter/apps/api/operations-center/Dockerfile
           push: false
           tags: operations-center-api:ci
           cache-from: type=gha,scope=operations-center-api
@@ -143,8 +143,8 @@ jobs:
       - name: Build frontend image
         uses: docker/build-push-action@v6
         with:
-          context: apps/web
-          file: apps/web/Dockerfile
+          context: Projects/OperationsCenter/apps/web
+          file: Projects/OperationsCenter/apps/web/Dockerfile
           push: false
           tags: operations-center-web:ci
           cache-from: type=gha,scope=operations-center-web

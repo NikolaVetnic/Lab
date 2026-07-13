@@ -1,6 +1,6 @@
 # Operations Center
 
-[![CI](https://github.com/NikolaVetnic/Lab/actions/workflows/ci.yml/badge.svg)](https://github.com/NikolaVetnic/Lab/actions/workflows/ci.yml)
+[![Operations Center CI](https://github.com/NikolaVetnic/Lab/actions/workflows/operations-center-ci.yml/badge.svg)](https://github.com/NikolaVetnic/Lab/actions/workflows/operations-center-ci.yml)
 
 Operations Center er et porteføljeprosjekt for en moderne plattform som hjelper organisasjoner med å håndtere hendelser, oppgaver, varsler og sanntidsinformasjon.
 
