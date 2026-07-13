@@ -134,9 +134,26 @@ jobs:
     needs:
       - backend
       - frontend
+    env:
+      SOLUTION_DIR: Projects/OperationsCenter/apps/api/operations-center
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build internal NuGet packages
+        run: |
+          mkdir -p "$SOLUTION_DIR/artifacts/packages"
+          dotnet pack "$SOLUTION_DIR/src/BuildingBlocks/BuildingBlocks.Cqrs.Abstractions/BuildingBlocks.Cqrs.Abstractions.csproj" \
+            --configuration Release \
+            --output "$SOLUTION_DIR/artifacts/packages"
+          dotnet pack "$SOLUTION_DIR/src/BuildingBlocks/BuildingBlocks.Cqrs/BuildingBlocks.Cqrs.csproj" \
+            --configuration Release \
+            --output "$SOLUTION_DIR/artifacts/packages"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
