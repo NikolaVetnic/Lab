@@ -11,16 +11,17 @@ namespace OperationsCenter.Application.Incidents.Commands.CreateIncident;
 
 public sealed class CreateIncidentCommandHandler(
     IOperationsCenterDbContext dbContext,
-    IIncidentRealTimeNotifier realTimeNotifier)
+    IIncidentRealTimeNotifier realTimeNotifier,
+    IOperationsCenterTelemetry telemetry)
     : ICommandHandler<CreateIncidentCommand, IncidentResponse>
 {
     private readonly IOperationsCenterDbContext _dbContext = dbContext;
     private readonly IIncidentRealTimeNotifier _realTimeNotifier = realTimeNotifier;
+    private readonly IOperationsCenterTelemetry _telemetry = telemetry;
 
     public async Task<IncidentResponse> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
     {
-        using var activity = OperationsCenterTelemetry.ActivitySource.StartActivity(
-            OperationsCenterTelemetry.IncidentCreateActivityName);
+        using var activity = _telemetry.StartIncidentCreateActivity();
 
         Incident incident = Incident.Create(request.Title, request.Description, request.Severity, request.ActorUserId);
 
@@ -37,7 +38,7 @@ public sealed class CreateIncidentCommandHandler(
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        OperationsCenterTelemetry.RecordIncidentCreated(incident.Severity.ToString());
+        _telemetry.RecordIncidentCreated(incident.Severity.ToString());
 
         var createdMessage = new IncidentCreatedMessage(
             incident.Id,

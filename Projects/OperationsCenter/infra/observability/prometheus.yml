@@ -1,0 +1,14 @@
+# Prometheus scrape configuration for local Operations Center development.
+#
+# Prometheus scrapes the OpenTelemetry Collector's Prometheus exporter endpoint
+# (not the API directly). The API pushes metrics to the Collector over OTLP; the
+# Collector re-exposes them for scraping. Targets use Docker service DNS names.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: otel-collector
+    static_configs:
+      - targets: ['operations-center-otel-collector:8889']

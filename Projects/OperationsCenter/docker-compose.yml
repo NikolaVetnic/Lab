@@ -61,12 +61,12 @@ services:
       Jwt__Audience: ${Jwt__Audience:-OperationsCenter.Api}
       Jwt__SigningKey: ${Jwt__SigningKey:-development-only-signing-key-change-me}
       Jwt__AccessTokenExpiryMinutes: ${Jwt__AccessTokenExpiryMinutes:-180}
-      # Telemetry export is disabled by default. Set OpenTelemetry__Enabled=true only once an
-      # OpenTelemetry Collector is reachable at OpenTelemetry__OtlpEndpoint. The API stays up either way.
-      OpenTelemetry__Enabled: ${OpenTelemetry__Enabled:-false}
+      # Telemetry is enabled in the containerized stack and pushed to the OpenTelemetry
+      # Collector over OTLP. The API stays up even if the Collector is unavailable.
+      OpenTelemetry__Enabled: ${OpenTelemetry__Enabled:-true}
       OpenTelemetry__ServiceName: ${OpenTelemetry__ServiceName:-operations-center-api}
       OpenTelemetry__ServiceVersion: ${OpenTelemetry__ServiceVersion:-1.0.0}
-      OpenTelemetry__OtlpEndpoint: ${OpenTelemetry__OtlpEndpoint:-http://otel-collector:4317}
+      OpenTelemetry__OtlpEndpoint: ${OpenTelemetry__OtlpEndpoint:-http://operations-center-otel-collector:4317}
     ports:
       - '${API_PORT:-5000}:8080'
 
@@ -83,5 +83,34 @@ services:
     ports:
       - '${WEB_PORT:-8080}:80'
 
+  operations-center-otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.156.0
+    container_name: operations-center-otel-collector
+    restart: unless-stopped
+    command: ['--config=/etc/otel-collector-config.yml']
+    volumes:
+      - ./infra/observability/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      # OTLP gRPC receiver (API export target)
+      - '${OTEL_GRPC_PORT:-4317}:4317'
+      # OTLP HTTP receiver (optional, for manual/debug OTLP)
+      - '${OTEL_HTTP_PORT:-4318}:4318'
+      # Prometheus scrape endpoint exposed by the collector
+      - '${OTEL_PROMETHEUS_PORT:-8889}:8889'
+
+  operations-center-prometheus:
+    image: prom/prometheus:v3.13.1
+    container_name: operations-center-prometheus
+    restart: unless-stopped
+    depends_on:
+      operations-center-otel-collector:
+        condition: service_started
+    volumes:
+      - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - operations-center-prometheus-data:/prometheus
+    ports:
+      - '${PROMETHEUS_PORT:-9090}:9090'
+
 volumes:
   operations-center-postgres-data:
+  operations-center-prometheus-data:

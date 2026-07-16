@@ -11,16 +11,17 @@ namespace OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
 
 public sealed class UpdateIncidentStatusCommandHandler(
     IOperationsCenterDbContext dbContext,
-    IIncidentRealTimeNotifier realTimeNotifier)
+    IIncidentRealTimeNotifier realTimeNotifier,
+    IOperationsCenterTelemetry telemetry)
     : ICommandHandler<UpdateIncidentStatusCommand, UpdateIncidentStatusResult>
 {
     private readonly IOperationsCenterDbContext _dbContext = dbContext;
     private readonly IIncidentRealTimeNotifier _realTimeNotifier = realTimeNotifier;
+    private readonly IOperationsCenterTelemetry _telemetry = telemetry;
 
     public async Task<UpdateIncidentStatusResult> Handle(UpdateIncidentStatusCommand request, CancellationToken cancellationToken)
     {
-        using var activity = OperationsCenterTelemetry.ActivitySource.StartActivity(
-            OperationsCenterTelemetry.IncidentStatusChangeActivityName);
+        using var activity = _telemetry.StartIncidentStatusChangeActivity();
 
         activity?.SetTag("incident.id", request.IncidentId);
 
@@ -56,7 +57,7 @@ public sealed class UpdateIncidentStatusCommandHandler(
         await _dbContext.AddAuditEventAsync(auditEvent, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        OperationsCenterTelemetry.RecordIncidentStatusChanged(
+        _telemetry.RecordIncidentStatusChanged(
             previousStatus.ToString(),
             incident.Status.ToString());
 

@@ -207,6 +207,8 @@ Eksponerte lokale adresser i Compose-oppsettet:
 - Swagger UI: `http://localhost:5000/swagger`
 - OpenAPI JSON: `http://localhost:5000/openapi/v1.json`
 - PostgreSQL: `localhost:5432`
+- Prometheus UI: `http://localhost:9090`
+- Collector Prometheus-metrikker: `http://localhost:8889/metrics`
 
 Compose starter disse tjenestene:
 
@@ -214,6 +216,8 @@ Compose starter disse tjenestene:
 - `operations-center-migrations`
 - `operations-center-api`
 - `operations-center-web`
+- `operations-center-otel-collector`
+- `operations-center-prometheus`
 
 Oppstartsrekkefølge:
 
@@ -385,14 +389,66 @@ Resource-attributter som settes: `service.name`, `service.version` og `deploymen
 
 ### Aktiver eller deaktiver lokalt
 
-- Eksport er som standard **deaktivert** (`OpenTelemetry__Enabled=false`) både i `appsettings.json`, `.env.example` og Docker Compose.
-- Sett `OpenTelemetry__Enabled=true` og pek `OpenTelemetry__OtlpEndpoint` mot en kjørende Collector for å aktivere eksport.
+- I Docker Compose og `.env.example` er telemetri **aktivert** som standard (`OpenTelemetry__Enabled=true`) og pushes til Collector-tjenesten over OTLP.
+- For lokal kjøring uten containere er eksport som standard **deaktivert** i `appsettings.json` (`OpenTelemetry__Enabled=false`); sett `OpenTelemetry__Enabled=true` og pek `OpenTelemetry__OtlpEndpoint` mot en kjørende Collector for å aktivere eksport.
 - API-et starter og betjener trafikk normalt uansett om telemetri er av eller på.
 - En utilgjengelig Collector gjør **ikke** API-et eller health-rutene usunne; eksportfeil logges og forkastes uten å påvirke forespørsler.
 
+### Observability-infrastruktur (Collector + Prometheus)
+
+Docker Compose kjører nå den første observability-infrastrukturen:
+
+- `operations-center-otel-collector` — OpenTelemetry Collector (contrib-image). Tar imot OTLP over gRPC (`4317`) og HTTP (`4318`), batcher, og eksponerer metrikker på et Prometheus-scrape-endepunkt (`8889`). Traces og logger sendes foreløpig kun til Collectorens debug-utskrift (ingen lagringsbackend enda).
+- `operations-center-prometheus` — Prometheus, scraper Collectorens metrikk-endepunkt og eksponerer UI på `9090`.
+
+Telemetriflyt:
+
+```
+OperationsCenter.Api
+    ↓ OTLP gRPC :4317
+operations-center-otel-collector
+    ↓ Prometheus-eksportør :8889
+operations-center-prometheus (UI :9090)
+```
+
+Prometheus scraper Collectoren, ikke API-et direkte: .NET-API-et pusher metrikker via OTLP og eksponerer ikke selv et Prometheus-`/metrics`-endepunkt. Collectoren konverterer mottatte OTLP-metrikker til et scrape-bart endepunkt, slik at applikasjonskoden forblir leverandørnøytral uten en Prometheus-eksportør.
+
+Konfigurasjonsfiler:
+
+- Collector: `infra/observability/otel-collector-config.yml`
+- Prometheus: `infra/observability/prometheus.yml`
+
+Eksponerte lokale adresser:
+
+- Prometheus UI: `http://localhost:9090`
+- Collector Prometheus-metrikker: `http://localhost:8889/metrics`
+- OTLP gRPC: `localhost:4317`
+- OTLP HTTP: `localhost:4318`
+
+Start stacken:
+
+```bash
+docker compose up --build
+docker compose ps
+docker compose logs -f operations-center-otel-collector
+docker compose logs -f operations-center-prometheus
+```
+
+Verifiser at Prometheus scraper Collectoren:
+
+1. Start stacken (`docker compose up --build`).
+2. Bruk appen eller kall API-endepunkter (f.eks. login og list/opprett incidents) slik at det genereres trafikk og metrikker.
+3. Åpne Prometheus på `http://localhost:9090`.
+4. Gå til `Status → Targets` og bekreft at `otel-collector`-målet er `UP`.
+5. Kjør en spørring på en kjent metrikk som strømmer fra API-et, for eksempel den innebygde ASP.NET Core-metrikken `http_server_request_duration_seconds_count` eller en .NET runtime-metrikk som `dotnet_gc_collections_total`.
+
+De automatiske metrikkene (ASP.NET Core, HttpClient, .NET runtime) er verifisert ende-til-ende: API → Collector → Prometheus.
+
+Merk: OpenTelemetry-metrikknavn normaliseres av Prometheus-eksportøren (punktum blir understrek, tellere får `_total`-suffiks). Applikasjonens egendefinerte metrikker bruker `operations_center_*`-navngivning (for eksempel `operations_center_incidents_created_total`). Instrumenteringen for disse ligger i backend fra forrige steg; å få de egendefinerte metrikkene og traces til å strømme helt frem til Collectoren gjenstår som en oppfølging på applikasjonssiden.
+
 ### Ikke inkludert enda
 
-OpenTelemetry Collector, Prometheus, Grafana, Tempo, Loki, Jaeger og trace-visualisering er ikke satt opp i dette steget. Collector introduseres senere; deretter kan traces, metrics og logger rutes til valgte backends.
+Grafana og Seq er bevisst **ikke** lagt til i dette steget, og heller ikke Tempo, Loki, Jaeger, dashboards eller alerts. Traces og logger mottas av Collectoren men lagres ikke i en backend enda. Neste steg er Grafana-dashboards oppå Prometheus.
 
 ## Agentinstruksjoner
 

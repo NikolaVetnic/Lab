@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using OperationsCenter.Application.Incidents.Commands.CreateIncident;
 using OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
@@ -18,7 +19,8 @@ public sealed class IncidentTelemetryTests
     public async Task CreateIncidentCommandHandler_WhenIncidentPersisted_IncrementsCreatedCounter()
     {
         using var recorder = new MeasurementRecorder();
-        var handler = new CreateIncidentCommandHandler(new FakeDbContext(), new FakeNotifier());
+        var telemetry = CreateTelemetry();
+        var handler = new CreateIncidentCommandHandler(new FakeDbContext(), new FakeNotifier(), telemetry);
 
         await handler.Handle(
             new CreateIncidentCommand("Telemetry create", "desc", IncidentSeverity.High, Guid.NewGuid()),
@@ -34,7 +36,8 @@ public sealed class IncidentTelemetryTests
     public async Task CreateIncidentCommandHandler_WhenIncidentInvalid_DoesNotIncrementCreatedCounter()
     {
         using var recorder = new MeasurementRecorder();
-        var handler = new CreateIncidentCommandHandler(new FakeDbContext(), new FakeNotifier());
+        var telemetry = CreateTelemetry();
+        var handler = new CreateIncidentCommandHandler(new FakeDbContext(), new FakeNotifier(), telemetry);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             handler.Handle(
@@ -48,9 +51,11 @@ public sealed class IncidentTelemetryTests
     public async Task CreateIncidentCommandHandler_WhenPersistenceFails_DoesNotIncrementCreatedCounter()
     {
         using var recorder = new MeasurementRecorder();
+        var telemetry = CreateTelemetry();
         var handler = new CreateIncidentCommandHandler(
             new FakeDbContext { ThrowOnSaveChanges = true },
-            new FakeNotifier());
+            new FakeNotifier(),
+            telemetry);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(
@@ -65,7 +70,8 @@ public sealed class IncidentTelemetryTests
     {
         var incident = Incident.Create("Telemetry status", "desc", IncidentSeverity.High, Guid.NewGuid());
         using var recorder = new MeasurementRecorder();
-        var handler = new UpdateIncidentStatusCommandHandler(new FakeDbContext(incident), new FakeNotifier());
+        var telemetry = CreateTelemetry();
+        var handler = new UpdateIncidentStatusCommandHandler(new FakeDbContext(incident), new FakeNotifier(), telemetry);
 
         UpdateIncidentStatusResult result = await handler.Handle(
             new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.InProgress, Guid.NewGuid()),
@@ -85,7 +91,8 @@ public sealed class IncidentTelemetryTests
     {
         var incident = Incident.Create("Telemetry status", "desc", IncidentSeverity.High, Guid.NewGuid());
         using var recorder = new MeasurementRecorder();
-        var handler = new UpdateIncidentStatusCommandHandler(new FakeDbContext(incident), new FakeNotifier());
+        var telemetry = CreateTelemetry();
+        var handler = new UpdateIncidentStatusCommandHandler(new FakeDbContext(incident), new FakeNotifier(), telemetry);
 
         UpdateIncidentStatusResult result = await handler.Handle(
             new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.Closed, Guid.NewGuid()),
@@ -155,6 +162,11 @@ public sealed class IncidentTelemetryTests
         public Task IncidentStatusChangedAsync(IncidentStatusChangedMessage message, CancellationToken cancellationToken) =>
             Task.CompletedTask;
     }
+
+    private static IOperationsCenterTelemetry CreateTelemetry() =>
+        new OperationsCenterTelemetry(
+            new ActivitySource(OperationsCenterTelemetry.ActivitySourceName),
+            new Meter(OperationsCenterTelemetry.MeterName));
 
     private sealed class FakeDbContext(Incident? existingIncident = null) : IOperationsCenterDbContext
     {

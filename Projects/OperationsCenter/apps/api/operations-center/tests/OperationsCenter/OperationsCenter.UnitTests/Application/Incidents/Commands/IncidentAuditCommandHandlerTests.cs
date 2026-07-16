@@ -1,7 +1,10 @@
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Text.Json;
 using OperationsCenter.Application.Incidents.Commands.CreateIncident;
 using OperationsCenter.Application.Incidents.Realtime;
 using OperationsCenter.Application.Incidents.Commands.UpdateIncidentStatus;
+using OperationsCenter.Application.Observability;
 using OperationsCenter.Application.Persistence;
 using OperationsCenter.Contracts.Realtime;
 using OperationsCenter.Domain.Audit;
@@ -17,7 +20,7 @@ public sealed class IncidentAuditCommandHandlerTests
     {
         var dbContext = new FakeOperationsCenterDbContext();
         var notifier = new FakeIncidentRealTimeNotifier();
-        var handler = new CreateIncidentCommandHandler(dbContext, notifier);
+        var handler = new CreateIncidentCommandHandler(dbContext, notifier, CreateTelemetry());
         var actorUserId = Guid.NewGuid();
 
         var command = new CreateIncidentCommand("Audit create", "Create audit event", IncidentSeverity.Medium, actorUserId);
@@ -44,7 +47,7 @@ public sealed class IncidentAuditCommandHandlerTests
             ThrowOnSaveChanges = true
         };
         var notifier = new FakeIncidentRealTimeNotifier();
-        var handler = new CreateIncidentCommandHandler(dbContext, notifier);
+        var handler = new CreateIncidentCommandHandler(dbContext, notifier, CreateTelemetry());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(
@@ -60,7 +63,7 @@ public sealed class IncidentAuditCommandHandlerTests
         var incident = Incident.Create("Audit status", "Status change", IncidentSeverity.High, Guid.NewGuid());
         var dbContext = new FakeOperationsCenterDbContext(incident);
         var notifier = new FakeIncidentRealTimeNotifier();
-        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier, CreateTelemetry());
         var actorUserId = Guid.NewGuid();
 
         var command = new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.InProgress, actorUserId);
@@ -91,7 +94,7 @@ public sealed class IncidentAuditCommandHandlerTests
         var incident = Incident.Create("Audit status", "Invalid transition", IncidentSeverity.High, Guid.NewGuid());
         var dbContext = new FakeOperationsCenterDbContext(incident);
         var notifier = new FakeIncidentRealTimeNotifier();
-        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier, CreateTelemetry());
 
         UpdateIncidentStatusResult result = await handler.Handle(
             new UpdateIncidentStatusCommand(incident.Id, IncidentStatus.Closed, Guid.NewGuid()),
@@ -106,7 +109,7 @@ public sealed class IncidentAuditCommandHandlerTests
     {
         var dbContext = new FakeOperationsCenterDbContext();
         var notifier = new FakeIncidentRealTimeNotifier();
-        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier, CreateTelemetry());
 
         UpdateIncidentStatusResult result = await handler.Handle(
             new UpdateIncidentStatusCommand(Guid.NewGuid(), IncidentStatus.InProgress, Guid.NewGuid()),
@@ -125,7 +128,7 @@ public sealed class IncidentAuditCommandHandlerTests
             ThrowOnSaveChanges = true
         };
         var notifier = new FakeIncidentRealTimeNotifier();
-        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier);
+        var handler = new UpdateIncidentStatusCommandHandler(dbContext, notifier, CreateTelemetry());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(
@@ -234,4 +237,9 @@ public sealed class IncidentAuditCommandHandlerTests
             return Task.CompletedTask;
         }
     }
+
+    private static IOperationsCenterTelemetry CreateTelemetry() =>
+        new OperationsCenterTelemetry(
+            new ActivitySource(OperationsCenterTelemetry.ActivitySourceName),
+            new Meter(OperationsCenterTelemetry.MeterName));
 }
