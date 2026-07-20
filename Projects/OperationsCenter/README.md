@@ -338,7 +338,31 @@ Viktig for tester:
 
 ## Observability (OpenTelemetry)
 
-Backend-et er instrumentert med OpenTelemetry som leverandørnøytral standard for traces, metrics og logg-korrelasjon. Telemetri eksporteres via OTLP mot en OpenTelemetry Collector som introduseres senere. Applikasjonskoden er ikke koblet mot Grafana, Prometheus, Jaeger, Application Insights eller andre leverandører.
+Backend-et er instrumentert med OpenTelemetry som leverandørnøytral standard for traces, metrics og logg-korrelasjon. Telemetri eksporteres via OTLP mot en OpenTelemetry Collector. Applikasjonskoden er ikke koblet mot Grafana, Prometheus, Seq, Tempo eller noen annen leverandør — den peker kun mot Collectoren.
+
+### Verktøy og formål
+
+| Verktøy                     | Formål                                                                                     | Lokal URL                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| **OpenTelemetry Collector** | Mottar OTLP fra API-et og fordeler hvert signal (metrics/logger/traces) til riktig backend | `localhost:4317` (gRPC), `localhost:4318` (HTTP), `http://localhost:8889/metrics` |
+| **Prometheus**              | Lagring og spørring av metrikker (scraper Collectorens Prometheus-endepunkt)               | `http://localhost:9090`                                                           |
+| **Grafana**                 | Dashboards for Prometheus-metrikker, og trace-utforsking mot Tempo via `Explore`           | `http://localhost:3000`                                                           |
+| **Seq**                     | Strukturert logglagring og -søk                                                            | `http://localhost:5341`                                                           |
+| **Tempo**                   | Trace-backend, spørres gjennom Grafana (eller direkte mot sitt query-API)                  | `http://localhost:3200`                                                           |
+
+Telemetriflyt:
+
+```mermaid
+flowchart LR
+    API["OperationsCenter.Api"] -->|OTLP gRPC :4317| Collector["OpenTelemetry Collector"]
+    Collector -->|metrics| Prometheus[("Prometheus\n:9090")]
+    Collector -->|logs| Seq[("Seq\n:5341")]
+    Collector -->|traces| Tempo[("Tempo\n:3200")]
+    Prometheus --> Grafana["Grafana\n:3000"]
+    Tempo --> Grafana
+```
+
+API-et snakker kun med Collectoren. Collectoren er den eneste komponenten som vet noe om Prometheus, Seq eller Tempo — legger man til eller bytter ut en backend, er det Collector-konfigurasjonen som endres, aldri applikasjonskoden.
 
 ### Hva instrumenteres
 
@@ -412,17 +436,11 @@ Docker Compose kjører nå observability-infrastrukturen:
 - `operations-center-seq` — Seq, mottar strukturerte logger fra Collectoren over native OTLP-innlasting og eksponerer UI/søk på `5341`.
 - `operations-center-tempo` — Grafana Tempo i single-binary lokal-lagringsmodus, mottar traces fra Collectoren over OTLP gRPC og eksponerer et query-API på `3200` (kun brukt av Grafana og for manuell inspeksjon — ikke publisert som en OTLP-mottakerport).
 
-Telemetriflyt:
+Se telemetriflyt-diagrammet under [«Verktøy og formål»](#verktøy-og-formål) over for den overordnede flyten. I Collector-konfigurasjonen konkret betyr det:
 
-```text
-OperationsCenter.Api
-    ↓ OTLP gRPC :4317
-operations-center-otel-collector
-    ├─ Prometheus-eksportør :8889 → operations-center-prometheus (UI :9090) → operations-center-grafana (UI :3000)
-    ├─ otlp_http-eksportør (logger) → operations-center-seq (UI :5341)
-    ├─ otlp_grpc-eksportør (traces) → operations-center-tempo (query-API :3200) → operations-center-grafana (UI :3000)
-    └─ debug-eksportør (traces og logger, kun collector-stdout)
-```
+- metrics-pipeline: `otlp` → `batch` → `prometheus`-eksportør (`:8889`)
+- logs-pipeline: `otlp` → `batch` → `otlp_http/seq`-eksportør (pluss `debug`)
+- traces-pipeline: `otlp` → `batch` → `otlp_grpc/tempo`-eksportør (pluss `debug`)
 
 Prometheus scraper Collectoren, ikke API-et direkte: .NET-API-et pusher metrikker via OTLP og eksponerer ikke selv et Prometheus-`/metrics`-endepunkt. Collectoren konverterer mottatte OTLP-metrikker til et scrape-bart endepunkt, slik at applikasjonskoden forblir leverandørnøytral uten en Prometheus-eksportør. Grafana spør kun mot Prometheus og har ingen egen kobling mot API-et eller Collectoren.
 
@@ -479,7 +497,7 @@ Verifiser Grafana:
 1. Åpne `http://localhost:3000` og logg inn.
 2. Under `Connections → Data sources` skal `Prometheus`- og `Tempo`-datakildene allerede være konfigurert (provisjonert, ikke satt opp manuelt); `Prometheus` er markert som standard.
 3. Under `Dashboards` skal `Operations Center overview`-dashboardet ligge i mappen `Operations Center`, provisjonert fra `infra/observability/grafana/dashboards/operations-center-overview.json`.
-4. Dashboardet viser opprettede incidents, statusoverganger, HTTP-request-varighet (p95 per rute), HTTP-requests per statuskode, .NET GC-rate og prosessminne.
+4. Dashboardet viser opprettede incidents (totalt og per alvorlighetsgrad), statusoverganger, samlet HTTP-request-rate, HTTP-feilrate (5xx, %), HTTP-request-varighet (p95 per rute), HTTP-requests per statuskode, .NET GC-rate, prosessminne og prosess-CPU-tid.
 
 Verifiser Seq:
 
@@ -505,6 +523,41 @@ Verifiser Tempo (distribuert sporing):
 
 Tempo er lokal utviklings- og portefølje-demo-infrastruktur, ikke produksjonsklar sporings-lagring: lokal disk-backend, ingen S3/GCS/Azure Blob, ingen multi-node-modus, ingen produksjons-retention, ingen autentisering, og `usage_report.reporting_enabled: false` slik at Tempo ikke ringer hjem til Grafana Labs. Prometheus/Grafana-metrikker og Seq-logger fortsetter uendret ved siden av.
 
+### Korrelasjon: fra trace til logg
+
+Traces sendes ikke til Seq — korrelasjonen skjer via feltene `TraceId`/`SpanId` som OpenTelemetrys logg-provider automatisk setter på hver loggpost innenfor et aktivt trace (ingen kode-endring kreves). Slik brukes det i praksis:
+
+1. Finn en trace i Grafana Explore (Tempo-datakilden) eller direkte via Tempos API, som beskrevet over.
+2. Kopier trace-ID-en (f.eks. fra URL-en eller trace-visningens header).
+3. Åpne Seq på `http://localhost:5341` og søk med filteret `TraceId = 'den-kopierte-id-en'`.
+4. Alle loggpostene som ble skrevet under akkurat denne forespørselen (og eventuelle undersystemer som deler samme trace) dukker opp samlet, uavhengig av tidspunkt eller hvilken del av koden som logget dem.
+
+Dette er felt-nivå-korrelasjon (du kan slå opp fra en trace-ID til de tilhørende loggene), ikke en visuell «trace-til-logg»-lenke inne i Grafana-UI-et — `tracesToLogs`/`tracesToMetrics` er bevisst ikke konfigurert (se [«Ikke inkludert enda»](#ikke-inkludert-enda)).
+
+### Demo-scenario
+
+En kort ende-til-ende-demonstrasjon som viser metrikker, logger og traces samtidig, for samme forespørsler:
+
+1. Start stacken: `docker compose up --build`.
+2. Logg inn som `operator@operations-center.local` (passord: `DEV_SEED_OPERATOR_PASSWORD`, standard `Operator123!`) — Operator-rollen har `Incidents.Write` og kan opprette/endre incidents.
+3. Opprett en incident (via frontend på `http://localhost:8080`, eller `POST /incidents` mot `http://localhost:5000`).
+4. Endre status på incidenten (via frontend, eller `PATCH /incidents/{id}/status`).
+5. Åpne Grafana (`http://localhost:3000`) og se at dashboardet `Operations Center overview` viser den nye incidenten i «Incidents Created»- og «Incident Status Transitions»-panelene, samt økt HTTP-request-rate.
+6. I Grafana, gå til `Explore` → `Tempo`-datakilden, og finn traces for de to kallene (`POST /incidents`, `PATCH /incidents/{id}/status`). Åpne en av dem og se span-treet (HTTP-span → `incident.create`/`incident.status_change` → PostgreSQL-span).
+7. Kopier trace-ID-en og søk etter den i Seq (`http://localhost:5341`) som beskrevet over — bekreft at loggpostene for nøyaktig denne forespørselen dukker opp.
+
+Dette beviser hele kjeden i én gjennomgang: samme forespørsel er synlig som en metrikk-økning, et fullstendig trace-span-tre og korrelerte loggposter.
+
+### Sikkerhet og begrensninger for lokal bruk
+
+Hele observability-stacken (Collector, Prometheus, Grafana, Seq, Tempo) er **lokal utviklings- og portefølje-demo-infrastruktur**, ikke en produksjonsherdet overvåkingsplattform:
+
+- Seq og Tempo har ingen autentisering konfigurert; Grafana bruker kun en enkel dev-brukernavn/passord-kombinasjon (`GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD`, standard `admin`/`admin`).
+- Ingen av observability-verktøyene er eksponert gjennom frontendens reverse proxy — de nås direkte på sine egne porter, kun lokalt.
+- Ingen retention-, skalerings- eller HA-hensyn er gjort; alt kjører som enkeltinstanser med lokal disk.
+- Sensitiv informasjon (JWT-er, Authorization-headere, passord, passord-hasher, connection strings, fullstendige request/response-bodyer) logges eller telemetrifiseres aldri — verifisert ved gjennomgang av alle `logger.Log*`-kall i API-et.
+- Ikke bruk disse standardverdiene eller dette oppsettet i produksjon.
+
 ### Ikke inkludert enda
 
 Loki, Jaeger, alerts, Kubernetes, Helm og Terraform er bevisst **ikke** lagt til i dette steget. Trace-til-logg- og trace-til-metrikk-korrelasjon i Grafana (`tracesToLogs`/`tracesToMetrics`) er heller ikke konfigurert — Seq har ingen Grafana-datakilde-plugin, og ekstra korrelasjonsoppsett er bevisst utelatt for å holde dette steget minimalt.
@@ -528,6 +581,7 @@ Første dokumenterte ADR:
 
 - `0001-internal-mediator-cqrs.md` beskriver intern CQRS mediator-implementasjon uten ekstern MediatR-avhengighet.
 - `0002-opentelemetry-otlp-observability.md` beskriver bruk av OpenTelemetry med OTLP-eksport for leverandørnøytral observability.
+- `0003-use-opentelemetry-observability-stack.md` beskriver valget av Prometheus, Grafana, Seq og Tempo som lokale/demo-backends bak Collectoren.
 
 Backend-kode er nå gruppert slik:
 
