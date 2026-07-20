@@ -83,11 +83,25 @@ services:
     ports:
       - '${WEB_PORT:-8080}:80'
 
+  operations-center-seq:
+    image: datalust/seq:2024.3
+    container_name: operations-center-seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: 'Y'
+    volumes:
+      - operations-center-seq-data:/data
+    ports:
+      - '${SEQ_PORT:-5341}:80'
+
   operations-center-otel-collector:
     image: otel/opentelemetry-collector-contrib:0.156.0
     container_name: operations-center-otel-collector
     restart: unless-stopped
     command: ['--config=/etc/otel-collector-config.yml']
+    depends_on:
+      operations-center-seq:
+        condition: service_started
     volumes:
       - ./infra/observability/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
     ports:
@@ -133,3 +147,4 @@ volumes:
   operations-center-postgres-data:
   operations-center-prometheus-data:
   operations-center-grafana-data:
+  operations-center-seq-data:
