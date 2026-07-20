@@ -1,0 +1,13 @@
+# Provisions the Prometheus data source for the Operations Center Grafana instance.
+# Grafana reads this file on startup; no manual "Add data source" step is needed.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://operations-center-prometheus:9090
+    isDefault: true
+    editable: false

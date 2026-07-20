@@ -209,6 +209,7 @@ Eksponerte lokale adresser i Compose-oppsettet:
 - PostgreSQL: `localhost:5432`
 - Prometheus UI: `http://localhost:9090`
 - Collector Prometheus-metrikker: `http://localhost:8889/metrics`
+- Grafana UI: `http://localhost:3000`
 
 Compose starter disse tjenestene:
 
@@ -218,6 +219,7 @@ Compose starter disse tjenestene:
 - `operations-center-web`
 - `operations-center-otel-collector`
 - `operations-center-prometheus`
+- `operations-center-grafana`
 
 Oppstartsrekkefølge:
 
@@ -394,12 +396,13 @@ Resource-attributter som settes: `service.name`, `service.version` og `deploymen
 - API-et starter og betjener trafikk normalt uansett om telemetri er av eller på.
 - En utilgjengelig Collector gjør **ikke** API-et eller health-rutene usunne; eksportfeil logges og forkastes uten å påvirke forespørsler.
 
-### Observability-infrastruktur (Collector + Prometheus)
+### Observability-infrastruktur (Collector + Prometheus + Grafana)
 
-Docker Compose kjører nå den første observability-infrastrukturen:
+Docker Compose kjører nå observability-infrastrukturen:
 
 - `operations-center-otel-collector` — OpenTelemetry Collector (contrib-image). Tar imot OTLP over gRPC (`4317`) og HTTP (`4318`), batcher, og eksponerer metrikker på et Prometheus-scrape-endepunkt (`8889`). Traces og logger sendes foreløpig kun til Collectorens debug-utskrift (ingen lagringsbackend enda).
 - `operations-center-prometheus` — Prometheus, scraper Collectorens metrikk-endepunkt og eksponerer UI på `9090`.
+- `operations-center-grafana` — Grafana, med Prometheus forhåndskonfigurert som datakilde og et ferdig dashboard provisjonert ved oppstart. UI på `3000`.
 
 Telemetriflyt:
 
@@ -409,14 +412,19 @@ OperationsCenter.Api
 operations-center-otel-collector
     ↓ Prometheus-eksportør :8889
 operations-center-prometheus (UI :9090)
+    ↓ Prometheus-datakilde
+operations-center-grafana (UI :3000)
 ```
 
-Prometheus scraper Collectoren, ikke API-et direkte: .NET-API-et pusher metrikker via OTLP og eksponerer ikke selv et Prometheus-`/metrics`-endepunkt. Collectoren konverterer mottatte OTLP-metrikker til et scrape-bart endepunkt, slik at applikasjonskoden forblir leverandørnøytral uten en Prometheus-eksportør.
+Prometheus scraper Collectoren, ikke API-et direkte: .NET-API-et pusher metrikker via OTLP og eksponerer ikke selv et Prometheus-`/metrics`-endepunkt. Collectoren konverterer mottatte OTLP-metrikker til et scrape-bart endepunkt, slik at applikasjonskoden forblir leverandørnøytral uten en Prometheus-eksportør. Grafana spør kun mot Prometheus og har ingen egen kobling mot API-et eller Collectoren.
 
 Konfigurasjonsfiler:
 
 - Collector: `infra/observability/otel-collector-config.yml`
 - Prometheus: `infra/observability/prometheus.yml`
+- Grafana-datakilde: `infra/observability/grafana/provisioning/datasources/datasource.yml`
+- Grafana dashboard-provider: `infra/observability/grafana/provisioning/dashboards/dashboards.yml`
+- Grafana dashboard-JSON: `infra/observability/grafana/dashboards/operations-center-overview.json`
 
 Eksponerte lokale adresser:
 
@@ -424,6 +432,7 @@ Eksponerte lokale adresser:
 - Collector Prometheus-metrikker: `http://localhost:8889/metrics`
 - OTLP gRPC: `localhost:4317`
 - OTLP HTTP: `localhost:4318`
+- Grafana UI: `http://localhost:3000` (innlogging: `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` fra `.env`, standard `admin`/`admin` for lokal utvikling)
 
 Start stacken:
 
@@ -432,6 +441,7 @@ docker compose up --build
 docker compose ps
 docker compose logs -f operations-center-otel-collector
 docker compose logs -f operations-center-prometheus
+docker compose logs -f operations-center-grafana
 ```
 
 Verifiser at Prometheus scraper Collectoren:
@@ -440,15 +450,22 @@ Verifiser at Prometheus scraper Collectoren:
 2. Bruk appen eller kall API-endepunkter (f.eks. login og list/opprett incidents) slik at det genereres trafikk og metrikker.
 3. Åpne Prometheus på `http://localhost:9090`.
 4. Gå til `Status → Targets` og bekreft at `otel-collector`-målet er `UP`.
-5. Kjør en spørring på en kjent metrikk som strømmer fra API-et, for eksempel den innebygde ASP.NET Core-metrikken `http_server_request_duration_seconds_count` eller en .NET runtime-metrikk som `dotnet_gc_collections_total`.
+5. Kjør en spørring på en kjent metrikk som strømmer fra API-et, for eksempel den innebygde ASP.NET Core-metrikken `http_server_request_duration_seconds_count`, en .NET runtime-metrikk som `dotnet_gc_collections_total`, eller applikasjonens egendefinerte `operations_center_incidents_created_incident_total`.
 
-De automatiske metrikkene (ASP.NET Core, HttpClient, .NET runtime) er verifisert ende-til-ende: API → Collector → Prometheus.
+Både de automatiske metrikkene (ASP.NET Core, HttpClient, .NET runtime) og applikasjonens egendefinerte metrikker (`operations_center_incidents_created_incident_total`, `operations_center_incidents_status_changes_transition_total`) er verifisert ende-til-ende: API → Collector → Prometheus → Grafana.
 
-Merk: OpenTelemetry-metrikknavn normaliseres av Prometheus-eksportøren (punktum blir understrek, tellere får `_total`-suffiks). Applikasjonens egendefinerte metrikker bruker `operations_center_*`-navngivning (for eksempel `operations_center_incidents_created_total`). Instrumenteringen for disse ligger i backend fra forrige steg; å få de egendefinerte metrikkene og traces til å strømme helt frem til Collectoren gjenstår som en oppfølging på applikasjonssiden.
+Merk: OpenTelemetry-metrikknavn normaliseres av Prometheus-eksportøren (punktum blir understrek, tellere får `_total`-suffiks).
+
+Verifiser Grafana:
+
+1. Åpne `http://localhost:3000` og logg inn.
+2. Under `Connections → Data sources` skal `Prometheus`-datakilden allerede være konfigurert og markert som standard (provisjonert, ikke satt opp manuelt).
+3. Under `Dashboards` skal `Operations Center overview`-dashboardet ligge i mappen `Operations Center`, provisjonert fra `infra/observability/grafana/dashboards/operations-center-overview.json`.
+4. Dashboardet viser opprettede incidents, statusoverganger, HTTP-request-varighet (p95 per rute), HTTP-requests per statuskode, .NET GC-rate og prosessminne.
 
 ### Ikke inkludert enda
 
-Grafana og Seq er bevisst **ikke** lagt til i dette steget, og heller ikke Tempo, Loki, Jaeger, dashboards eller alerts. Traces og logger mottas av Collectoren men lagres ikke i en backend enda. Neste steg er Grafana-dashboards oppå Prometheus.
+Seq er bevisst **ikke** lagt til i dette steget, og heller ikke Tempo, Loki, Jaeger eller alerts. Traces og logger mottas av Collectoren men lagres ikke i en backend enda.
 
 ## Agentinstruksjoner
 

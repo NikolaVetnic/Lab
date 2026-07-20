@@ -1,0 +1,15 @@
+# Registers the file-based dashboard provider. Grafana loads any dashboard JSON found
+# under options.path on startup and keeps it in sync with the files on disk.
+
+apiVersion: 1
+
+providers:
+  - name: Operations Center
+    orgId: 1
+    folder: 'Operations Center'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
