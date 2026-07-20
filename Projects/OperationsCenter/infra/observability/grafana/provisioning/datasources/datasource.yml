@@ -1,5 +1,7 @@
-# Provisions the Prometheus data source for the Operations Center Grafana instance.
-# Grafana reads this file on startup; no manual "Add data source" step is needed.
+# Provisions the Prometheus and Tempo data sources for the Operations Center Grafana
+# instance. Grafana reads this file on startup; no manual "Add data source" step is
+# needed. URLs use Docker service DNS names, not localhost, since Grafana resolves
+# them from inside the compose network.
 
 apiVersion: 1
 
@@ -10,4 +12,11 @@ datasources:
     access: proxy
     url: http://operations-center-prometheus:9090
     isDefault: true
+    editable: false
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://operations-center-tempo:3200
+    isDefault: false
     editable: false

@@ -211,6 +211,7 @@ Eksponerte lokale adresser i Compose-oppsettet:
 - Collector Prometheus-metrikker: `http://localhost:8889/metrics`
 - Grafana UI: `http://localhost:3000`
 - Seq UI: `http://localhost:5341`
+- Tempo query-API: `http://localhost:3200`
 
 Compose starter disse tjenestene:
 
@@ -222,6 +223,7 @@ Compose starter disse tjenestene:
 - `operations-center-prometheus`
 - `operations-center-grafana`
 - `operations-center-seq`
+- `operations-center-tempo`
 
 Oppstartsrekkefølge:
 
@@ -400,35 +402,40 @@ Resource-attributter som settes: `service.name`, `service.version` og `deploymen
 - API-et starter og betjener trafikk normalt uansett om telemetri er av eller på.
 - En utilgjengelig Collector gjør **ikke** API-et eller health-rutene usunne; eksportfeil logges og forkastes uten å påvirke forespørsler.
 
-### Observability-infrastruktur (Collector + Prometheus + Grafana + Seq)
+### Observability-infrastruktur (Collector + Prometheus + Grafana + Seq + Tempo)
 
 Docker Compose kjører nå observability-infrastrukturen:
 
-- `operations-center-otel-collector` — OpenTelemetry Collector (contrib-image). Tar imot OTLP over gRPC (`4317`) og HTTP (`4318`), batcher, og eksponerer metrikker på et Prometheus-scrape-endepunkt (`8889`). Traces sendes foreløpig kun til Collectorens debug-utskrift (ingen sporings-backend enda). Logger sendes til både debug-utskrift og Seq.
+- `operations-center-otel-collector` — OpenTelemetry Collector (contrib-image). Tar imot OTLP over gRPC (`4317`) og HTTP (`4318`), batcher, og fordeler per signaltype: metrikker til Prometheus, logger til Seq, traces til Tempo (pluss debug-utskrift for traces og logger).
 - `operations-center-prometheus` — Prometheus, scraper Collectorens metrikk-endepunkt og eksponerer UI på `9090`.
-- `operations-center-grafana` — Grafana, med Prometheus forhåndskonfigurert som datakilde og et ferdig dashboard provisjonert ved oppstart. UI på `3000`.
+- `operations-center-grafana` — Grafana, med Prometheus og Tempo forhåndskonfigurert som datakilder og et ferdig dashboard provisjonert ved oppstart. UI på `3000`.
 - `operations-center-seq` — Seq, mottar strukturerte logger fra Collectoren over native OTLP-innlasting og eksponerer UI/søk på `5341`.
+- `operations-center-tempo` — Grafana Tempo i single-binary lokal-lagringsmodus, mottar traces fra Collectoren over OTLP gRPC og eksponerer et query-API på `3200` (kun brukt av Grafana og for manuell inspeksjon — ikke publisert som en OTLP-mottakerport).
 
 Telemetriflyt:
 
-```
+```text
 OperationsCenter.Api
     ↓ OTLP gRPC :4317
 operations-center-otel-collector
     ├─ Prometheus-eksportør :8889 → operations-center-prometheus (UI :9090) → operations-center-grafana (UI :3000)
-    ├─ debug-eksportør (traces, kun collector-stdout)
-    └─ otlp_http-eksportør (logger) → operations-center-seq (UI :5341)
+    ├─ otlp_http-eksportør (logger) → operations-center-seq (UI :5341)
+    ├─ otlp_grpc-eksportør (traces) → operations-center-tempo (query-API :3200) → operations-center-grafana (UI :3000)
+    └─ debug-eksportør (traces og logger, kun collector-stdout)
 ```
 
 Prometheus scraper Collectoren, ikke API-et direkte: .NET-API-et pusher metrikker via OTLP og eksponerer ikke selv et Prometheus-`/metrics`-endepunkt. Collectoren konverterer mottatte OTLP-metrikker til et scrape-bart endepunkt, slik at applikasjonskoden forblir leverandørnøytral uten en Prometheus-eksportør. Grafana spør kun mot Prometheus og har ingen egen kobling mot API-et eller Collectoren.
 
 Logger rutes på samme måte via Collectoren, ikke direkte fra API-et til Seq: Collectoren bruker sin generiske `otlp_http`-eksportør mot Seqs innebygde OTLP-innlastingsendepunkt (`/ingest/otlp/v1/logs`, tilgjengelig fra Seq 2024.3). Det trengs ingen Seq-spesifikk eksportør eller vendor-kode i API-et — kun standard OTLP. Traces sendes ikke til Seq i dette steget, så Seq gir korrelasjon via `TraceId`/`SpanId`-felt på hver loggpost, ikke en visuell distribuert sporing.
 
+Traces rutes likeledes via Collectoren, ikke direkte fra API-et til Tempo: Collectoren bruker en standard `otlp_grpc`-eksportør (gRPC, uten TLS) mot Tempos innebygde OTLP-mottaker. API-et forblir dermed vendor-nøytralt — det peker kun mot Collectoren, uansett hvilken trace-backend som står bak. Grafanas `Tempo`-datakilde spør Tempos query-API direkte over Docker-nettverket (`http://operations-center-tempo:3200`), ikke via `localhost`.
+
 Konfigurasjonsfiler:
 
 - Collector: `infra/observability/otel-collector-config.yml`
 - Prometheus: `infra/observability/prometheus.yml`
-- Grafana-datakilde: `infra/observability/grafana/provisioning/datasources/datasource.yml`
+- Tempo: `infra/observability/tempo.yml`
+- Grafana-datakilder: `infra/observability/grafana/provisioning/datasources/datasource.yml`
 - Grafana dashboard-provider: `infra/observability/grafana/provisioning/dashboards/dashboards.yml`
 - Grafana dashboard-JSON: `infra/observability/grafana/dashboards/operations-center-overview.json`
 - Seq: ingen provisjonert konfigurasjonsfil — kjører med standardinnstillinger (ingen autentisering), kun EULA-aksept og et navngitt volum for persistens.
@@ -441,6 +448,7 @@ Eksponerte lokale adresser:
 - OTLP HTTP: `localhost:4318`
 - Grafana UI: `http://localhost:3000` (innlogging: `GRAFANA_ADMIN_USER`/`GRAFANA_ADMIN_PASSWORD` fra `.env`, standard `admin`/`admin` for lokal utvikling)
 - Seq UI: `http://localhost:5341` (ingen innlogging kreves i dette lokale oppsettet)
+- Tempo query-API: `http://localhost:3200` (ingen innlogging kreves; kun til manuell inspeksjon — Grafana bruker Docker-nettverket internt)
 
 Start stacken:
 
@@ -451,6 +459,7 @@ docker compose logs -f operations-center-otel-collector
 docker compose logs -f operations-center-prometheus
 docker compose logs -f operations-center-grafana
 docker compose logs -f operations-center-seq
+docker compose logs -f operations-center-tempo
 ```
 
 Verifiser at Prometheus scraper Collectoren:
@@ -468,7 +477,7 @@ Merk: OpenTelemetry-metrikknavn normaliseres av Prometheus-eksportøren (punktum
 Verifiser Grafana:
 
 1. Åpne `http://localhost:3000` og logg inn.
-2. Under `Connections → Data sources` skal `Prometheus`-datakilden allerede være konfigurert og markert som standard (provisjonert, ikke satt opp manuelt).
+2. Under `Connections → Data sources` skal `Prometheus`- og `Tempo`-datakildene allerede være konfigurert (provisjonert, ikke satt opp manuelt); `Prometheus` er markert som standard.
 3. Under `Dashboards` skal `Operations Center overview`-dashboardet ligge i mappen `Operations Center`, provisjonert fra `infra/observability/grafana/dashboards/operations-center-overview.json`.
 4. Dashboardet viser opprettede incidents, statusoverganger, HTTP-request-varighet (p95 per rute), HTTP-requests per statuskode, .NET GC-rate og prosessminne.
 
@@ -484,9 +493,21 @@ Verifiser Seq:
 
 Seq er lokal utviklings- og portefølje-demo-infrastruktur, ikke et sted for produksjonslegitimasjon: ingen autentisering er konfigurert, og `ACCEPT_EULA` gjelder kun lokal bruk. Metrikker fortsetter å gå til Prometheus/Grafana som før — Seq er kun for logger.
 
+Verifiser Tempo (distribuert sporing):
+
+1. Start stacken (`docker compose up --build`), eller gjenbruk en kjørende stack.
+2. Logg inn via API-et eller frontend.
+3. Opprett en incident.
+4. Endre status på incidenten.
+5. Åpne Grafana på `http://localhost:3000`.
+6. Gå til `Explore`, velg `Tempo`-datakilden, og søk etter traces (f.eks. `{ resource.service.name = "operations-center-api" }`, eller bruk `Search`-fanen og filtrer på tjenestenavn).
+7. Åpne en trace fra et av kallene over og bekreft at den viser det innkommende HTTP-kallet (`POST /incidents`, `PATCH /incidents/{id}/status` osv.) med barne-spans for egendefinerte aktiviteter (`incident.create`, `incident.status_change`) og PostgreSQL-kommandoer.
+
+Tempo er lokal utviklings- og portefølje-demo-infrastruktur, ikke produksjonsklar sporings-lagring: lokal disk-backend, ingen S3/GCS/Azure Blob, ingen multi-node-modus, ingen produksjons-retention, ingen autentisering, og `usage_report.reporting_enabled: false` slik at Tempo ikke ringer hjem til Grafana Labs. Prometheus/Grafana-metrikker og Seq-logger fortsetter uendret ved siden av.
+
 ### Ikke inkludert enda
 
-Tempo, Loki, Jaeger, alerts, Kubernetes og Helm er bevisst **ikke** lagt til i dette steget. Traces mottas av Collectoren men lagres foreløpig ikke i en dedikert sporings-backend — kun i Collectorens debug-utskrift.
+Loki, Jaeger, alerts, Kubernetes, Helm og Terraform er bevisst **ikke** lagt til i dette steget. Trace-til-logg- og trace-til-metrikk-korrelasjon i Grafana (`tracesToLogs`/`tracesToMetrics`) er heller ikke konfigurert — Seq har ingen Grafana-datakilde-plugin, og ekstra korrelasjonsoppsett er bevisst utelatt for å holde dette steget minimalt.
 
 ## Agentinstruksjoner
 

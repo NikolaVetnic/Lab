@@ -94,6 +94,20 @@ services:
     ports:
       - '${SEQ_PORT:-5341}:80'
 
+  operations-center-tempo:
+    image: grafana/tempo:2.6.1
+    container_name: operations-center-tempo
+    restart: unless-stopped
+    command: ['-config.file=/etc/tempo.yml']
+    volumes:
+      - ./infra/observability/tempo.yml:/etc/tempo.yml:ro
+      - operations-center-tempo-data:/var/tempo
+    ports:
+      # Tempo query API, used by Grafana's Tempo data source and for manual inspection.
+      # The OTLP receiver ports (4317/4318) are intentionally not published to the host:
+      # only the Collector talks to Tempo, over the internal compose network.
+      - '${TEMPO_PORT:-3200}:3200'
+
   operations-center-otel-collector:
     image: otel/opentelemetry-collector-contrib:0.156.0
     container_name: operations-center-otel-collector
@@ -101,6 +115,8 @@ services:
     command: ['--config=/etc/otel-collector-config.yml']
     depends_on:
       operations-center-seq:
+        condition: service_started
+      operations-center-tempo:
         condition: service_started
     volumes:
       - ./infra/observability/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
@@ -132,6 +148,8 @@ services:
     depends_on:
       operations-center-prometheus:
         condition: service_started
+      operations-center-tempo:
+        condition: service_started
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -148,3 +166,4 @@ volumes:
   operations-center-prometheus-data:
   operations-center-grafana-data:
   operations-center-seq-data:
+  operations-center-tempo-data:

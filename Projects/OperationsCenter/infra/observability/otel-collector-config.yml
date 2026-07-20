@@ -2,7 +2,7 @@
 #
 # Pipeline: receive OTLP from the API, batch, then:
 #   - metrics  -> Prometheus scrape endpoint (:8889)
-#   - traces   -> debug exporter (collector stdout) — no trace storage backend yet
+#   - traces   -> Tempo (OTLP gRPC) and debug exporter (collector stdout)
 #   - logs     -> Seq (native OTLP log ingestion) and debug exporter
 #
 # This configuration is vendor-neutral: it exports to no external SaaS and needs no
@@ -23,15 +23,23 @@ exporters:
   # Metrics are re-exposed as a Prometheus scrape target at :8889/metrics.
   prometheus:
     endpoint: 0.0.0.0:8889
-  # Traces are only printed to the collector log for now (no trace storage backend yet).
+  # Printed to the collector log so nothing is silently dropped during troubleshooting.
   debug:
     verbosity: basic
-  # Seq (2024.3+) accepts OTLP logs natively at /ingest/otlp/v1/logs. The otlphttp
+  # Seq (2024.3+) accepts OTLP logs natively at /ingest/otlp/v1/logs. The otlp_http
   # exporter appends /v1/logs to this base endpoint automatically, so no Seq-specific
   # exporter is needed. Default retry/sending-queue behavior means a down Seq instance
   # just queues/drops at the collector without affecting the API.
   otlp_http/seq:
     endpoint: http://operations-center-seq/ingest/otlp
+  # Tempo runs single-binary local mode with its own OTLP gRPC receiver. No TLS is
+  # configured on either side, so the exporter connects insecurely (plain gRPC).
+  # Default retry/sending-queue behavior means a down Tempo instance just
+  # queues/drops at the collector without affecting the API.
+  otlp_grpc/tempo:
+    endpoint: operations-center-tempo:4317
+    tls:
+      insecure: true
 
 service:
   pipelines:
@@ -42,7 +50,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [debug, otlp_grpc/tempo]
     logs:
       receivers: [otlp]
       processors: [batch]

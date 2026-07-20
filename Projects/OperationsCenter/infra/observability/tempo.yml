@@ -1,0 +1,38 @@
+# Grafana Tempo configuration for local Operations Center development.
+#
+# Single-binary, local-storage mode: one Tempo process handles distribution,
+# ingestion, storage and querying. Traces arrive only from the OpenTelemetry
+# Collector (never directly from the API) over OTLP gRPC/HTTP.
+#
+# Local disk only — no S3/GCS/Azure Blob, no multi-node mode, no production
+# retention tuning.
+
+usage_report:
+  reporting_enabled: false
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 1h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
