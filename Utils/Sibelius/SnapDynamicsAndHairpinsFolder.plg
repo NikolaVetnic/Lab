@@ -1,0 +1,104 @@
+{
+	Initialize "() {
+AddToPluginsMenu(_PluginMenuName,'Run');}"
+	Run "() {
+// Snap Dynamics and Hairpins (Folder)
+//
+// Same repositioning logic as Snap Dynamics and Hairpins, applied to every
+// Sibelius score found in a chosen folder: opens each file, repositions its
+// Expression text and hairpins, saves it, then closes it again.
+
+folder = Sibelius.SelectFolder('Choose a folder of scores to process');
+
+if (IsObject(folder))
+{
+    numFiles = folder.FileCount;
+    Sibelius.CreateProgressDialog(_ProgressCaption, 1, numFiles);
+
+    fileNum = 0;
+    continueRunning = True;
+
+    totalScores = 0;
+    totalText = 0;
+    totalLines = 0;
+
+    expressionDelta = ExpressionExtraSpaces * 32;
+    hairpinDelta = HairpinExtraSpaces * 32;
+
+    for each SIB file in folder
+    {
+        fileNum = fileNum + 1;
+        shortName = file.NameNoPath;
+        continueRunning = Sibelius.UpdateProgressDialog(fileNum, shortName);
+
+        if (continueRunning = False)
+        {
+            Sibelius.DestroyProgressDialog();
+            return False;
+        }
+
+        fileName = file.NameWithExt;
+        opened = Sibelius.Open(fileName, True);
+
+        if (opened = True)
+        {
+            score = Sibelius.ActiveScore;
+            textCount = 0;
+            lineCount = 0;
+
+            for each s in score
+            {
+                for each b in s
+                {
+                    for each Text t in b
+                    {
+                        if (t.StyleId = 'text.staff.expression')
+                        {
+                            t.ResetPosition();
+                            t.UsesMagneticLayout = SuppressDodge;
+                            t.Dy = t.Dy - expressionDelta;
+                            textCount = textCount + 1;
+                        }
+                    }
+
+                    for each CrescendoLine ln in b
+                    {
+                        ln.ResetPosition();
+                        ln.UsesMagneticLayout = SuppressDodge;
+                        ln.Dy = ln.Dy - hairpinDelta;
+                        ln.RhDy = ln.RhDy - hairpinDelta;
+                        lineCount = lineCount + 1;
+                    }
+
+                    for each DiminuendoLine ln in b
+                    {
+                        ln.ResetPosition();
+                        ln.UsesMagneticLayout = SuppressDodge;
+                        ln.Dy = ln.Dy - hairpinDelta;
+                        ln.RhDy = ln.RhDy - hairpinDelta;
+                        lineCount = lineCount + 1;
+                    }
+                }
+            }
+
+            score.Save(fileName);
+            Sibelius.Close(False);
+
+            totalScores = totalScores + 1;
+            totalText = totalText + textCount;
+            totalLines = totalLines + lineCount;
+        }
+    }
+
+    Sibelius.DestroyProgressDialog();
+    Sibelius.MessageBox('Processed ' & totalScores & ' scores: repositioned ' & totalText & ' expression marks and ' & totalLines & ' hairpins.');
+}
+else
+{
+    Sibelius.MessageBox('No folder was selected.');
+}}"
+	_PluginMenuName "Snap Dynamics and Hairpins (Folder)"
+	_ProgressCaption "Repositioning dynamics and hairpins..."
+	ExpressionExtraSpaces "3"
+	HairpinExtraSpaces "3"
+}

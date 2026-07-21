@@ -1,0 +1,96 @@
+{
+	Initialize "() {
+AddToPluginsMenu(_PluginMenuName,'Run');}"
+	Run "() {
+// Convert Lyric Dynamics to Expression (Folder)
+//
+// Same conversion as Convert Lyric Dynamics to Expression, applied to every
+// Sibelius score in a chosen folder: opens each file, converts any
+// dynamic-shaped LyricItems to proper Expression text, saves, then closes.
+// Run Snap Dynamics and Hairpins (Folder) afterwards to align the results.
+
+folder = Sibelius.SelectFolder('Choose a folder of scores to process');
+
+if (IsObject(folder))
+{
+    numFiles = folder.FileCount;
+    Sibelius.CreateProgressDialog(_ProgressCaption, 1, numFiles);
+
+    fileNum = 0;
+    continueRunning = True;
+
+    totalScores = 0;
+    totalConverted = 0;
+
+    for each SIB file in folder
+    {
+        fileNum = fileNum + 1;
+        shortName = file.NameNoPath;
+        continueRunning = Sibelius.UpdateProgressDialog(fileNum, shortName);
+
+        if (continueRunning = False)
+        {
+            Sibelius.DestroyProgressDialog();
+            return False;
+        }
+
+        fileName = file.NameWithExt;
+        opened = Sibelius.Open(fileName, True);
+
+        if (opened = True)
+        {
+            score = Sibelius.ActiveScore;
+            toConvert = CreateSparseArray();
+
+            for each s in score
+            {
+                for each b in s
+                {
+                    for each LyricItem lyr in b
+                    {
+                        lyricText = lyr.Text;
+
+                        if (lyricText = 'pppp' or lyricText = 'ppp' or lyricText = 'pp' or lyricText = 'p'
+                            or lyricText = 'mp' or lyricText = 'mf'
+                            or lyricText = 'f' or lyricText = 'ff' or lyricText = 'fff' or lyricText = 'ffff'
+                            or lyricText = 'sf' or lyricText = 'sfz' or lyricText = 'sfp' or lyricText = 'sfpp'
+                            or lyricText = 'fz' or lyricText = 'fp' or lyricText = 'rf' or lyricText = 'rfz' or lyricText = 'sffz')
+                        {
+                            toConvert.Push(lyr);
+                        }
+                    }
+                }
+            }
+
+            convertedCount = 0;
+
+            for each lyr in toConvert
+            {
+                pos = lyr.Position;
+                parentBar = lyr.ParentBar;
+                lyricText = lyr.Text;
+
+                parentBar.AddText(pos, lyricText, 'text.staff.expression');
+                lyr.Delete();
+
+                convertedCount = convertedCount + 1;
+            }
+
+            score.Save(fileName);
+            Sibelius.Close(False);
+
+            totalScores = totalScores + 1;
+            totalConverted = totalConverted + convertedCount;
+        }
+    }
+
+    Sibelius.DestroyProgressDialog();
+    Sibelius.MessageBox('Processed ' & totalScores & ' scores: converted ' & totalConverted & ' lyric-style dynamics into proper Expression text.');
+}
+else
+{
+    Sibelius.MessageBox('No folder was selected.');
+}}"
+	_PluginMenuName "Convert Lyric Dynamics to Expression (Folder)"
+	_ProgressCaption "Converting lyric-style dynamics..."
+}

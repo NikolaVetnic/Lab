@@ -1,0 +1,76 @@
+{
+	Initialize "() {
+AddToPluginsMenu(_PluginMenuName,'Run');}"
+	Run "() {
+// Snap Dynamics and Hairpins
+//
+// Moves every Expression text object (pp, mp, mf, f, ff, sfz, ...) and every
+// hairpin line (cresc./dim. wedge, any variant) further below the staff by a
+// fixed amount, measured from Sibelius's own Reset Position baseline for
+// each object - rather than computing an absolute position ourselves.
+//
+// ResetPosition() puts each object back at Sibelius's own default distance
+// below the staff (the same as clicking Reset Position on the Appearance
+// tab). ExpressionExtraSpaces / HairpinExtraSpaces then push it further
+// down from there, in spaces. UsesMagneticLayout is set to SuppressDodge
+// afterwards, so Magnetic Layout does not override this on the next relayout.
+//
+// For a Line object (hairpin), Dy controls the start point and RhDy
+// controls the end point independently - both need the same adjustment
+// or the two ends of the hairpin will not be level with each other.
+
+score = Sibelius.ActiveScore;
+
+if (IsObject(score))
+{
+    expressionDelta = ExpressionExtraSpaces * 32;
+    hairpinDelta = HairpinExtraSpaces * 32;
+
+    textCount = 0;
+    lineCount = 0;
+
+    for each s in score
+    {
+        for each b in s
+        {
+            for each Text t in b
+            {
+                if (t.StyleId = 'text.staff.expression')
+                {
+                    t.ResetPosition();
+                    t.UsesMagneticLayout = SuppressDodge;
+                    t.Dy = t.Dy - expressionDelta;
+                    textCount = textCount + 1;
+                }
+            }
+
+            for each CrescendoLine ln in b
+            {
+                ln.ResetPosition();
+                ln.UsesMagneticLayout = SuppressDodge;
+                ln.Dy = ln.Dy - hairpinDelta;
+                ln.RhDy = ln.RhDy - hairpinDelta;
+                lineCount = lineCount + 1;
+            }
+
+            for each DiminuendoLine ln in b
+            {
+                ln.ResetPosition();
+                ln.UsesMagneticLayout = SuppressDodge;
+                ln.Dy = ln.Dy - hairpinDelta;
+                ln.RhDy = ln.RhDy - hairpinDelta;
+                lineCount = lineCount + 1;
+            }
+        }
+    }
+
+    Sibelius.MessageBox('Repositioned ' & textCount & ' expression marks and ' & lineCount & ' hairpins.');
+}
+else
+{
+    Sibelius.MessageBox('Please open a score first.');
+}}"
+	_PluginMenuName "Snap Dynamics and Hairpins"
+	ExpressionExtraSpaces "3"
+	HairpinExtraSpaces "3"
+}

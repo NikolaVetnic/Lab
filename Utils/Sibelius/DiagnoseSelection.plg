@@ -1,0 +1,36 @@
+{
+	Initialize "() {
+AddToPluginsMenu(_PluginMenuName,'Run');}"
+	Run "() {
+// Diagnose Selection
+//
+// Select exactly one object in Sibelius (for example, one of the pp marks
+// that the Snap Dynamics and Hairpins script is not catching), then run
+// this. It reports the ManuScript Type and StyleId of whatever is selected,
+// so we can see what the script would need to match against.
+
+score = Sibelius.ActiveScore;
+
+if (IsObject(score))
+{
+    selection = score.Selection;
+    msg = '';
+
+    for each obj in selection
+    {
+        msg = msg & 'Type=' & obj.Type & ' StyleId=' & obj.StyleId & ' StyleAsText=' & obj.StyleAsText & ' Text=' & obj.Text & '; ';
+    }
+
+    if (msg = '')
+    {
+        msg = 'Nothing found in the selection - select exactly one object first.';
+    }
+
+    Sibelius.MessageBox(msg);
+}
+else
+{
+    Sibelius.MessageBox('Please open a score first.');
+}}"
+	_PluginMenuName "Diagnose Selection"
+}

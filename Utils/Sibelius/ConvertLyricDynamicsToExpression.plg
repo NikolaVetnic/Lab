@@ -1,0 +1,68 @@
+{
+	Initialize "() {
+AddToPluginsMenu(_PluginMenuName,'Run');}"
+	Run "() {
+// Convert Lyric Dynamics to Expression
+//
+// Some dynamics were entered as Lyric items (Lyrics line 1, etc.) instead
+// of proper Expression text - this happens when a dynamic mark such as mf
+// or pp is typed using the Lyrics tool rather than Text > Expression. A
+// LyricItem is a different ManuScript type from Text, so the Snap Dynamics
+// and Hairpins script never sees these, no matter what style they have.
+//
+// This finds LyricItems whose text matches a known dynamic marking,
+// replaces each with a proper Expression text object at the same position,
+// then deletes the original lyric. It does not reposition anything - run
+// Snap Dynamics and Hairpins afterwards to align the converted marks.
+//
+// Matching is by content (not by lyric verse number), so any genuine sung
+// lyrics that happen to share a verse line with these are left untouched.
+
+score = Sibelius.ActiveScore;
+
+if (IsObject(score))
+{
+    toConvert = CreateSparseArray();
+
+    for each s in score
+    {
+        for each b in s
+        {
+            for each LyricItem lyr in b
+            {
+                lyricText = lyr.Text;
+
+                if (lyricText = 'pppp' or lyricText = 'ppp' or lyricText = 'pp' or lyricText = 'p'
+                    or lyricText = 'mp' or lyricText = 'mf'
+                    or lyricText = 'f' or lyricText = 'ff' or lyricText = 'fff' or lyricText = 'ffff'
+                    or lyricText = 'sf' or lyricText = 'sfz' or lyricText = 'sfp' or lyricText = 'sfpp'
+                    or lyricText = 'fz' or lyricText = 'fp' or lyricText = 'rf' or lyricText = 'rfz' or lyricText = 'sffz')
+                {
+                    toConvert.Push(lyr);
+                }
+            }
+        }
+    }
+
+    convertedCount = 0;
+
+    for each lyr in toConvert
+    {
+        pos = lyr.Position;
+        parentBar = lyr.ParentBar;
+        lyricText = lyr.Text;
+
+        parentBar.AddText(pos, lyricText, 'text.staff.expression');
+        lyr.Delete();
+
+        convertedCount = convertedCount + 1;
+    }
+
+    Sibelius.MessageBox('Converted ' & convertedCount & ' lyric-style dynamics into proper Expression text. Now run Snap Dynamics and Hairpins to align them.');
+}
+else
+{
+    Sibelius.MessageBox('Please open a score first.');
+}}"
+	_PluginMenuName "Convert Lyric Dynamics to Expression"
+}
