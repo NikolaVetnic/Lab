@@ -1,0 +1,17 @@
+# Named to match the Docker Compose service name — see infra/k8s/README.md.
+apiVersion: v1
+kind: Service
+metadata:
+  name: operations-center-tempo
+  namespace: operations-center
+spec:
+  type: ClusterIP
+  selector:
+    app: operations-center-tempo
+  ports:
+    - name: http
+      port: 3200
+      targetPort: 3200
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317

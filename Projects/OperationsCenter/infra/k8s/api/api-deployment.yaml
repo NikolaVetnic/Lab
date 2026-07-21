@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operations-center-api
+  namespace: operations-center
+  labels:
+    app: operations-center-api
+spec:
+  # One replica for this first Kubernetes version: SignalR connections are held by a
+  # single API instance in-memory. Scaling past 1 replica needs a SignalR backplane
+  # (e.g. Redis) first — not added yet. See infra/k8s/README.md "Known limitations".
+  replicas: 1
+  selector:
+    matchLabels:
+      app: operations-center-api
+  template:
+    metadata:
+      labels:
+        app: operations-center-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: operations-center-api:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            # Host matches the Kubernetes Service name for postgres (see
+            # postgres-service.yaml) which is deliberately the same name Docker
+            # Compose uses, so this connection string is unchanged from compose.
+            - name: ConnectionStrings__OperationsCenterDatabase
+              value: Host=operations-center-postgres;Port=5432;Database=$(POSTGRES_DB);Username=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD)
+            - name: Jwt__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: Jwt__SigningKey
+            # ASP.NET Core's Data Protection key ring defaults to a path under $HOME;
+            # redirect it to the writable emptyDir below since the root filesystem is
+            # read-only and the container has no persistent home directory.
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 750m
+              memory: 512Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}

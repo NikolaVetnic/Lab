@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: operations-center
+data:
+  # Identical to infra/observability/grafana/provisioning/datasources/datasource.yml.
+  # URLs use Kubernetes Service DNS names for Prometheus and Tempo.
+  datasource.yml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://operations-center-prometheus:9090
+        isDefault: true
+        editable: false
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://operations-center-tempo:3200
+        isDefault: false
+        editable: false

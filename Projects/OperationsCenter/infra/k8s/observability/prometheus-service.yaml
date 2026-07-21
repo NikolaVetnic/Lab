@@ -1,0 +1,15 @@
+# Named to match the Docker Compose service name — see infra/k8s/README.md.
+# ClusterIP by default; use `kubectl port-forward` (documented in the README) for
+# local browser access, or the optional Ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: operations-center-prometheus
+  namespace: operations-center
+spec:
+  type: ClusterIP
+  selector:
+    app: operations-center-prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090

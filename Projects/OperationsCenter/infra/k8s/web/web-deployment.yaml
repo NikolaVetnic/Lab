@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operations-center-web
+  namespace: operations-center
+  labels:
+    app: operations-center-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: operations-center-web
+  template:
+    metadata:
+      labels:
+        app: operations-center-web
+    spec:
+      containers:
+        - name: web
+          image: operations-center-web:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          # The image's baked-in nginx.conf proxies /api/ and /hubs/ to
+          # http://operations-center-api:8080 and serves the SPA with a
+          # try_files .../index.html fallback (React Router). No container
+          # config change is needed: see api-service.yaml for the DNS-naming note.
+          securityContext:
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

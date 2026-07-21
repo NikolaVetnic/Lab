@@ -1,0 +1,13 @@
+# Named to match the Docker Compose service name — see infra/k8s/README.md.
+apiVersion: v1
+kind: Service
+metadata:
+  name: operations-center-seq
+  namespace: operations-center
+spec:
+  type: ClusterIP
+  selector:
+    app: operations-center-seq
+  ports:
+    - port: 80
+      targetPort: 80

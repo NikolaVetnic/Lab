@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operations-center-seq
+  namespace: operations-center
+  labels:
+    app: operations-center-seq
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: operations-center-seq
+  template:
+    metadata:
+      labels:
+        app: operations-center-seq
+    spec:
+      containers:
+        - name: seq
+          image: datalust/seq:2024.3
+          env:
+            # Local/demo use only — accepting the EULA this way is not appropriate
+            # for production. See infra/k8s/README.md.
+            - name: ACCEPT_EULA
+              value: 'Y'
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          # Seq serves its web UI at "/"; used as a simple, dependable liveness signal
+          # since no dedicated health path is configured here.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: operations-center-seq-data

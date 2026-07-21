@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: operations-center
+data:
+  # Shared by the postgres Deployment and the API/migration containers so the
+  # database name/user stay in sync without duplication.
+  POSTGRES_DB: operations_center
+  POSTGRES_USER: operations_center
+
+  # API
+  ASPNETCORE_ENVIRONMENT: Development
+  ASPNETCORE_URLS: http://+:8080
+  Jwt__Issuer: OperationsCenter.Dev
+  Jwt__Audience: OperationsCenter.Api
+  Jwt__AccessTokenExpiryMinutes: '180'
+  OpenTelemetry__Enabled: 'true'
+  OpenTelemetry__ServiceName: operations-center-api
+  OpenTelemetry__ServiceVersion: 1.0.0
+  OpenTelemetry__OtlpEndpoint: http://operations-center-otel-collector:4317

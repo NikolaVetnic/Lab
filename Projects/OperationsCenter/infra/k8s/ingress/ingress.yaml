@@ -1,0 +1,78 @@
+# OPTIONAL. Requires an Ingress controller already installed in the cluster
+# (e.g. Rancher Desktop's bundled Traefik, or ingress-nginx on kind/minikube).
+# Not applied by the base install — port-forward (documented in infra/k8s/README.md)
+# always works and needs no controller.
+#
+# Deliberately host-only routing, no path-based rewriting: each hostname maps to
+# exactly one Service on its normal port. api.operations-center.local goes straight
+# to the API for direct Swagger/health access; operations-center.local goes to the
+# web Service, whose own baked-in nginx.conf still does the /api and /hubs
+# reverse-proxying internally (unchanged from Docker Compose). This means no
+# controller-specific rewrite-target annotations are needed, and WebSocket upgrades
+# for /hubs (SignalR) pass straight through to the web pod's nginx, which already
+# sets Upgrade/Connection headers and a 600s timeout — nothing Ingress-specific to add.
+#
+# `ingressClassName` is intentionally omitted so the cluster's default IngressClass
+# is used. If your cluster has no default (or more than one), set it explicitly,
+# e.g. `ingressClassName: traefik` or `ingressClassName: nginx`.
+#
+# Add to /etc/hosts (or your OS equivalent) pointing at the ingress controller's
+# address (often 127.0.0.1 for Rancher/Docker Desktop, or the kind/minikube IP):
+#   127.0.0.1 operations-center.local api.operations-center.local grafana.operations-center.local seq.operations-center.local prometheus.operations-center.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: operations-center
+  namespace: operations-center
+spec:
+  rules:
+    - host: operations-center.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: operations-center-web
+                port:
+                  number: 80
+    - host: api.operations-center.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: operations-center-api
+                port:
+                  number: 8080
+    - host: grafana.operations-center.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: operations-center-grafana
+                port:
+                  number: 3000
+    - host: seq.operations-center.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: operations-center-seq
+                port:
+                  number: 80
+    - host: prometheus.operations-center.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: operations-center-prometheus
+                port:
+                  number: 9090

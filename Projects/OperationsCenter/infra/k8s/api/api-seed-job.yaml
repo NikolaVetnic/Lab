@@ -1,0 +1,94 @@
+# OPTIONAL — not applied by default. Seeds idempotent demo users
+# (admin@/operator@/viewer@operations-center.local) and demo incidents via the API
+# image's `--seed` mode (also runs migrations first, so this can substitute for
+# api-migrations-job.yaml if you want demo data from the start). Requires
+# ASPNETCORE_ENVIRONMENT=Development (already set in app-config).
+#
+# Apply only if you want demo data:
+#   kubectl apply -f infra/k8s/secrets/secrets.example.yaml   # provides dev-seed-secret
+#   kubectl apply -f infra/k8s/api/api-seed-job.yaml
+# Re-run safely with:
+#   kubectl delete job -n operations-center operations-center-api-seed --ignore-not-found
+#   kubectl apply -f infra/k8s/api/api-seed-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: operations-center-api-seed
+  namespace: operations-center
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: seed
+          image: operations-center-api:local
+          imagePullPolicy: IfNotPresent
+          args:
+            - --seed
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: ConnectionStrings__OperationsCenterDatabase
+              value: Host=operations-center-postgres;Port=5432;Database=$(POSTGRES_DB);Username=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD)
+            - name: Jwt__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: Jwt__SigningKey
+            - name: DEV_SEED_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dev-seed-secret
+                  key: DEV_SEED_ADMIN_PASSWORD
+            - name: DEV_SEED_OPERATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dev-seed-secret
+                  key: DEV_SEED_OPERATOR_PASSWORD
+            - name: DEV_SEED_VIEWER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dev-seed-secret
+                  key: DEV_SEED_VIEWER_PASSWORD
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}

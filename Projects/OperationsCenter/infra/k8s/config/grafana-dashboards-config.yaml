@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: operations-center
+data:
+  # Identical to infra/observability/grafana/provisioning/dashboards/dashboards.yml.
+  dashboards.yml: |
+    apiVersion: 1
+
+    providers:
+      - name: Operations Center
+        orgId: 1
+        folder: 'Operations Center'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards

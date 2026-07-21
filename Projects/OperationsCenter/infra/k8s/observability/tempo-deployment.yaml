@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operations-center-tempo
+  namespace: operations-center
+  labels:
+    app: operations-center-tempo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: operations-center-tempo
+  template:
+    metadata:
+      labels:
+        app: operations-center-tempo
+    spec:
+      # The official Grafana Tempo image runs as UID 10001; fsGroup makes the PVC
+      # writable by that user on first mount.
+      securityContext:
+        fsGroup: 10001
+        runAsUser: 10001
+        runAsNonRoot: true
+      containers:
+        - name: tempo
+          image: grafana/tempo:2.6.1
+          args:
+            - -config.file=/etc/tempo.yml
+          ports:
+            - name: http
+              containerPort: 3200
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tempo.yml
+              subPath: tempo.yml
+              readOnly: true
+            - name: data
+              mountPath: /var/tempo
+          # Tempo's single-binary server exposes a standard /ready endpoint on its
+          # http_listen_port (3200) — the same one Grafana's own Tempo Helm chart uses.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3200
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: tempo-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: operations-center-tempo-data

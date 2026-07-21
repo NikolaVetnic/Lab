@@ -1,0 +1,15 @@
+# Named to match the Docker Compose service name so existing config
+# (ConnectionStrings, otel-collector-config.yml, prometheus.yml, etc.) resolves the
+# same hostname via Kubernetes cluster DNS without modification. See infra/k8s/README.md.
+apiVersion: v1
+kind: Service
+metadata:
+  name: operations-center-postgres
+  namespace: operations-center
+spec:
+  type: ClusterIP
+  selector:
+    app: operations-center-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
