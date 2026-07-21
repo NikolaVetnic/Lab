@@ -1,0 +1,91 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operations-center.fullname" . }}-grafana
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "operations-center.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: grafana
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: grafana
+    spec:
+      # The official Grafana image runs as UID 472; fsGroup makes the PVC
+      # writable by that user on first mount.
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsNonRoot: true
+      containers:
+        - name: grafana
+          image: '{{ .Values.observability.grafana.image.repository }}:{{ .Values.observability.grafana.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: {{ .Values.observability.grafana.admin.user | quote }}
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.grafana.secretName" . }}
+                  key: GF_SECURITY_ADMIN_PASSWORD
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: 'false'
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources/datasource.yml
+              subPath: datasource.yml
+              readOnly: true
+            - name: dashboards-config
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yml
+              subPath: dashboards.yml
+              readOnly: true
+            - name: dashboard-operations-center
+              mountPath: /var/lib/grafana/dashboards/operations-center-overview.json
+              subPath: operations-center-overview.json
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/grafana
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.grafana.resources | nindent 12 }}
+      volumes:
+        - name: datasources
+          configMap:
+            name: {{ include "operations-center.fullname" . }}-grafana-datasources
+        - name: dashboards-config
+          configMap:
+            name: {{ include "operations-center.fullname" . }}-grafana-dashboards-config
+        - name: dashboard-operations-center
+          configMap:
+            name: {{ include "operations-center.fullname" . }}-grafana-dashboard-operations-center
+        - name: data
+          {{- if .Values.observability.grafana.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "operations-center.fullname" . }}-grafana
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

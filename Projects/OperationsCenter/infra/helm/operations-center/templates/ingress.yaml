@@ -1,0 +1,94 @@
+{{- if .Values.ingress.enabled }}
+# OPTIONAL. Requires an Ingress controller already installed in the cluster
+# (e.g. Rancher Desktop's bundled Traefik, or ingress-nginx on kind/minikube).
+# `kubectl port-forward` (documented in the chart README) always works and
+# needs no controller — this is not the only way in.
+#
+# Deliberately host-only routing, no path-based rewriting: each hostname maps
+# to exactly one Service on its normal port. The API host goes straight to the
+# API Service for direct Swagger/health access; the web host goes to the web
+# Service, whose own baked-in nginx.conf still does the /api and /hubs
+# reverse-proxying internally. This means no controller-specific
+# rewrite-target annotations are needed, and WebSocket upgrades for /hubs
+# (SignalR) pass straight through to the web pod's nginx, which already sets
+# Upgrade/Connection headers and a 600s timeout.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "operations-center.fullname" . }}
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- if and .Values.web.enabled .Values.ingress.web.enabled }}
+    - host: {{ .Values.ingress.web.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "operations-center.fullname" . }}-web
+                port:
+                  number: {{ .Values.web.service.port }}
+    {{- end }}
+    {{- if and .Values.api.enabled .Values.ingress.api.enabled }}
+    - host: {{ .Values.ingress.api.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "operations-center.fullname" . }}-api
+                port:
+                  number: {{ .Values.api.service.port }}
+    {{- end }}
+    {{- if and .Values.observability.grafana.enabled .Values.ingress.grafana.enabled }}
+    - host: {{ .Values.ingress.grafana.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "operations-center.fullname" . }}-grafana
+                port:
+                  number: {{ .Values.observability.grafana.service.port }}
+    {{- end }}
+    {{- if and .Values.observability.seq.enabled .Values.ingress.seq.enabled }}
+    - host: {{ .Values.ingress.seq.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "operations-center.fullname" . }}-seq
+                port:
+                  number: {{ .Values.observability.seq.service.port }}
+    {{- end }}
+    {{- if and .Values.observability.prometheus.enabled .Values.ingress.prometheus.enabled }}
+    - host: {{ .Values.ingress.prometheus.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "operations-center.fullname" . }}-prometheus
+                port:
+                  number: {{ .Values.observability.prometheus.service.port }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

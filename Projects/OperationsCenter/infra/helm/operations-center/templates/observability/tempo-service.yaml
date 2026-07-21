@@ -1,0 +1,21 @@
+{{- if .Values.observability.tempo.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "operations-center.fullname" . }}-tempo
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tempo
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "operations-center.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: tempo
+  ports:
+    - name: http
+      port: {{ .Values.observability.tempo.service.httpPort }}
+      targetPort: {{ .Values.observability.tempo.service.httpPort }}
+    - name: otlp-grpc
+      port: {{ .Values.observability.tempo.service.otlpGrpcPort }}
+      targetPort: {{ .Values.observability.tempo.service.otlpGrpcPort }}
+{{- end }}

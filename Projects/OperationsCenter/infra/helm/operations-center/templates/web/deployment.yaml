@@ -1,0 +1,50 @@
+{{- if .Values.web.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operations-center.fullname" . }}-web
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "operations-center.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      containers:
+        - name: web
+          image: '{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.web.containerPort }}
+          # The image's baked-in nginx.conf proxies /api/ and /hubs/ to
+          # http://operations-center-api:8080 and serves the SPA with a
+          # try_files .../index.html fallback (React Router). No container
+          # config change is needed as long as the API Service is named
+          # "operations-center-api" — see values.yaml's header comment.
+          securityContext:
+            allowPrivilegeEscalation: false
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.web.probes.path }}
+              port: {{ .Values.web.containerPort }}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.web.probes.path }}
+              port: {{ .Values.web.containerPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+{{- end }}

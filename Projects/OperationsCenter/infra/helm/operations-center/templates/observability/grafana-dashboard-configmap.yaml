@@ -1,0 +1,19 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "operations-center.fullname" . }}-grafana-dashboard-operations-center
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  # Loaded verbatim via .Files.Get, NOT embedded inline: the dashboard JSON
+  # itself uses Grafana's own legend-templating syntax (double curly braces
+  # around a field name, e.g. a severity placeholder), which collides with
+  # Helm's own double-curly-brace delimiters if embedded directly. .Files.Get
+  # reads the file's raw bytes without running them through the template
+  # engine, so Grafana's own syntax passes through untouched. Identical
+  # content to infra/observability/grafana/dashboards/operations-center-overview.json.
+  operations-center-overview.json: |
+{{ .Files.Get "files/grafana/operations-center-overview.json" | indent 4 }}
+{{- end }}

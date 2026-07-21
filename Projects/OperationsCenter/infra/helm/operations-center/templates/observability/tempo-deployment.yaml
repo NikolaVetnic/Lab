@@ -1,0 +1,76 @@
+{{- if .Values.observability.tempo.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operations-center.fullname" . }}-tempo
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tempo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "operations-center.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: tempo
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: tempo
+    spec:
+      # The official Grafana Tempo image runs as UID 10001; fsGroup makes the
+      # PVC writable by that user on first mount.
+      securityContext:
+        fsGroup: 10001
+        runAsUser: 10001
+        runAsNonRoot: true
+      containers:
+        - name: tempo
+          image: '{{ .Values.observability.tempo.image.repository }}:{{ .Values.observability.tempo.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - -config.file=/etc/tempo.yml
+          ports:
+            - name: http
+              containerPort: {{ .Values.observability.tempo.service.httpPort }}
+            - name: otlp-grpc
+              containerPort: {{ .Values.observability.tempo.service.otlpGrpcPort }}
+            - name: otlp-http
+              containerPort: 4318
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tempo.yml
+              subPath: tempo.yml
+              readOnly: true
+            - name: data
+              mountPath: /var/tempo
+          # Tempo's single-binary server exposes a standard /ready endpoint on
+          # its http_listen_port — the same one Grafana's own Tempo Helm chart uses.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.observability.tempo.service.httpPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.observability.tempo.service.httpPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.tempo.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "operations-center.fullname" . }}-tempo-config
+        - name: data
+          {{- if .Values.observability.tempo.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "operations-center.fullname" . }}-tempo
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

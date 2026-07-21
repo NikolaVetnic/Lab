@@ -1,0 +1,32 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "operations-center.fullname" . }}-grafana-datasources
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  datasource.yml: |
+    apiVersion: 1
+
+    datasources:
+      {{- if .Values.observability.prometheus.enabled }}
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://{{ include "operations-center.fullname" . }}-prometheus:{{ .Values.observability.prometheus.service.port }}
+        isDefault: true
+        editable: false
+      {{- end }}
+      {{- if .Values.observability.tempo.enabled }}
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://{{ include "operations-center.fullname" . }}-tempo:{{ .Values.observability.tempo.service.httpPort }}
+        isDefault: {{ not .Values.observability.prometheus.enabled }}
+        editable: false
+      {{- end }}
+{{- end }}

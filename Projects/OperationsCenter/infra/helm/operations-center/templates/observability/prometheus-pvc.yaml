@@ -1,0 +1,18 @@
+{{- if and .Values.observability.prometheus.enabled .Values.observability.prometheus.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "operations-center.fullname" . }}-prometheus
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.observability.prometheus.persistence.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.observability.prometheus.persistence.size }}
+{{- end }}

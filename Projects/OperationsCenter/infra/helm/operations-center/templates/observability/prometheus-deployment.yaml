@@ -1,0 +1,71 @@
+{{- if .Values.observability.prometheus.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operations-center.fullname" . }}-prometheus
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "operations-center.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prometheus
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: prometheus
+    spec:
+      # The official Prometheus image runs as UID 65534 (nobody); fsGroup
+      # makes the PVC writable by that user on first mount.
+      securityContext:
+        fsGroup: 65534
+        runAsUser: 65534
+        runAsNonRoot: true
+      containers:
+        - name: prometheus
+          image: '{{ .Values.observability.prometheus.image.repository }}:{{ .Values.observability.prometheus.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time={{ .Values.observability.prometheus.retention }}
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+              readOnly: true
+            - name: data
+              mountPath: /prometheus
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.prometheus.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "operations-center.fullname" . }}-prometheus-config
+        - name: data
+          {{- if .Values.observability.prometheus.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "operations-center.fullname" . }}-prometheus
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

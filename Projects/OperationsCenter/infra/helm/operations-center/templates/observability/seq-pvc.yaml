@@ -1,0 +1,18 @@
+{{- if and .Values.observability.seq.enabled .Values.observability.seq.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "operations-center.fullname" . }}-seq
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: seq
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.observability.seq.persistence.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.observability.seq.persistence.size }}
+{{- end }}

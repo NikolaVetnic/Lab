@@ -65,6 +65,11 @@ appsettings.Local.json
 
 # Local overrides of infra/k8s/secrets/secrets.example.yaml — never commit real values.
 infra/k8s/secrets/secrets.local.yaml
+
+# Personal overrides of infra/helm/operations-center/values.local.yaml — never commit
+# real values. values.local.yaml itself IS committed (same dev-only demo values as
+# infra/k8s/secrets/secrets.example.yaml) — only values.mine.yaml is git-ignored.
+infra/helm/operations-center/values.mine.yaml
 appsettings.Development.local.json
 
 # =========================

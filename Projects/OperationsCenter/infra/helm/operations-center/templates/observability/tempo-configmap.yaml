@@ -1,0 +1,40 @@
+{{- if .Values.observability.tempo.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "operations-center.fullname" . }}-tempo-config
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tempo
+data:
+  tempo.yml: |
+    usage_report:
+      reporting_enabled: false
+
+    server:
+      http_listen_port: {{ .Values.observability.tempo.service.httpPort }}
+
+    distributor:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:{{ .Values.observability.tempo.service.otlpGrpcPort }}
+            http:
+              endpoint: 0.0.0.0:4318
+
+    ingester:
+      max_block_duration: 5m
+
+    compactor:
+      compaction:
+        block_retention: 1h
+
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
+        wal:
+          path: /var/tempo/wal
+{{- end }}

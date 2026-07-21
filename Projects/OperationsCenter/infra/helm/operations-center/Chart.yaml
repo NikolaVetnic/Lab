@@ -1,0 +1,11 @@
+apiVersion: v2
+name: operations-center
+description: >-
+  Operations Center local/demo stack — Postgres, API, web frontend, and the
+  OpenTelemetry Collector/Prometheus/Grafana/Seq/Tempo observability stack —
+  packaged as a single Helm chart for local Kubernetes (Rancher Desktop,
+  Docker Desktop, kind, minikube). Not production-hardened; see the chart
+  README's "Known limitations".
+type: application
+version: 0.1.0
+appVersion: '0.1.0'

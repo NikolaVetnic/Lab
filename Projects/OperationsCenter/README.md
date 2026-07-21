@@ -86,8 +86,13 @@ Når en modul har et tydelig selvstendig ansvar og reelt behov for separat deplo
 │ └── web/
 │ └── AGENTS.md
 ├── docs/
-│ └── adr/
+│ ├── adr/
+│ └── guides/
 ├── infra/
+│ ├── observability/
+│ ├── k8s/
+│ └── helm/
+│ └── operations-center/
 └── services/
 
 ## Teknologistack
@@ -560,7 +565,18 @@ Hele observability-stacken (Collector, Prometheus, Grafana, Seq, Tempo) er **lok
 
 ### Ikke inkludert enda
 
-Loki, Jaeger, alerts, Kubernetes, Helm og Terraform er bevisst **ikke** lagt til i dette steget. Trace-til-logg- og trace-til-metrikk-korrelasjon i Grafana (`tracesToLogs`/`tracesToMetrics`) er heller ikke konfigurert — Seq har ingen Grafana-datakilde-plugin, og ekstra korrelasjonsoppsett er bevisst utelatt for å holde dette steget minimalt.
+Loki, Jaeger og alerts er bevisst **ikke** lagt til i dette steget. Trace-til-logg- og trace-til-metrikk-korrelasjon i Grafana (`tracesToLogs`/`tracesToMetrics`) er heller ikke konfigurert — Seq har ingen Grafana-datakilde-plugin, og ekstra korrelasjonsoppsett er bevisst utelatt for å holde dette steget minimalt. Kubernetes og Helm kom i et senere steg — se neste avsnitt.
+
+## Kubernetes og Helm
+
+Hele stacken over (Postgres, API, web, Collector, Prometheus, Grafana, Seq, Tempo) kan også køres i et lokalt Kubernetes-cluster, som et steg før en eventuell produksjonsmodell:
+
+- [`infra/k8s/`](infra/k8s/README.md) — rå Kubernetes-manifester (Deployments, Services, ConfigMaps, Secrets, PVCs, en migrations-Job, valgfri Ingress), organisert ett steg om gangen. Enkleste vei inn hvis du bare vil se stacken kjøre i Kubernetes én gang.
+- [`infra/helm/operations-center/`](infra/helm/operations-center/README.md) — de samme manifestene bygget om til et Helm-chart, konfigurerbart via `values.yaml`, med samme observability-flyt bevart.
+- [`docs/guides/kubernetes-manifests-setup.md`](docs/guides/kubernetes-manifests-setup.md) — nybegynnervennlig forklaring av Kubernetes-konseptene og hvorfor manifestene er bygget i den rekkefølgen de er.
+- [`docs/guides/exploring-kubernetes-manually.md`](docs/guides/exploring-kubernetes-manually.md) — en praktisk `kubectl`-sjekkliste for å utforske et kjørende cluster.
+
+Lokal/demo-bruk kun, akkurat som resten av observability-stacken: ingen Helm-repo er publisert, ingen produksjons-TLS, ingen cloud-spesifikke ressurser. Se de respektive README-filene for begrensninger og kommandoer.
 
 ## Agentinstruksjoner
 

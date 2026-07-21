@@ -1,0 +1,59 @@
+{{- if .Values.observability.otelCollector.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operations-center.fullname" . }}-otel-collector
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "operations-center.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: otel-collector
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: otel-collector
+    spec:
+      containers:
+        - name: otel-collector
+          image: '{{ .Values.observability.otelCollector.image.repository }}:{{ .Values.observability.otelCollector.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - --config=/etc/otel-collector-config.yml
+          ports:
+            - name: otlp-grpc
+              containerPort: {{ .Values.observability.otelCollector.service.otlpGrpcPort }}
+            - name: otlp-http
+              containerPort: {{ .Values.observability.otelCollector.service.otlpHttpPort }}
+            - name: prom-scrape
+              containerPort: {{ .Values.observability.otelCollector.service.prometheusPort }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel-collector-config.yml
+              subPath: otel-collector-config.yml
+              readOnly: true
+          # No health_check extension is configured (matches the raw config
+          # exactly), so there's no HTTP health endpoint to probe. A TCP probe
+          # against the OTLP receiver confirms the process is accepting
+          # connections without depending on an endpoint that doesn't exist.
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.observability.otelCollector.service.otlpGrpcPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.observability.otelCollector.service.otlpGrpcPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.otelCollector.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "operations-center.fullname" . }}-otel-collector-config
+{{- end }}

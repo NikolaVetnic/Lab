@@ -1,0 +1,273 @@
+# Default values for the operations-center chart.
+#
+# These are LOCAL/DEMO defaults, not production values. Every secret-shaped
+# field below is a placeholder ("CHANGE_ME") on purpose — see values.local.yaml
+# for the actual dev-only values already used throughout this repo, and the
+# chart README's "Secrets" section for how to bring your own instead.
+#
+# Install with release name "operations-center" (as shown in every example in
+# this chart's README) to get Kubernetes Service names identical to the raw
+# manifests under infra/k8s/ and to the hostname baked into the web image's
+# nginx.conf at build time. A different release name still works for every
+# other resource, but breaks that one baked-in proxy target unless you also
+# set fullnameOverride: operations-center. See "Known limitations" in the README.
+
+nameOverride: ''
+fullnameOverride: ''
+
+global:
+  imagePullPolicy: IfNotPresent
+  # Merged into every resource's labels. Empty by default — add anything your
+  # own tooling relies on (e.g. a team or cost-center tag).
+  commonLabels: {}
+  # Informational only (applied as an `environment` label) — not the same as
+  # api.aspnetEnvironment below, which actually changes API behavior.
+  environment: local
+
+# Not templated by default — see the chart README's "Namespace" section for
+# why `helm install --create-namespace` is the recommended path instead.
+namespace:
+  create: false
+  name: operations-center
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 17-alpine
+  auth:
+    database: operations_center
+    username: operations_center
+    # Placeholder — see values.local.yaml. Ignored entirely if existingSecret is set.
+    password: CHANGE_ME
+    # Name of a pre-existing Secret with a POSTGRES_PASSWORD key. Leave empty
+    # to let the chart template its own (from `password` above).
+    existingSecret: ''
+  service:
+    port: 5432
+  persistence:
+    enabled: true
+    size: 1Gi
+    # Empty = the cluster's default StorageClass.
+    storageClassName: ''
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+api:
+  enabled: true
+  image:
+    repository: operations-center-api
+    tag: local
+  replicaCount: 1
+  containerPort: 8080
+  service:
+    port: 8080
+  # ASPNETCORE_ENVIRONMENT. Must stay "Development" for /swagger and
+  # /openapi/v1.json to be mapped at all — see OpenApiConfigurationExtensions.
+  aspnetEnvironment: Development
+  probes:
+    readinessPath: /ready
+    livenessPath: /health
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 750m
+      memory: 512Mi
+  jwt:
+    issuer: OperationsCenter.Dev
+    audience: OperationsCenter.Api
+    accessTokenExpiryMinutes: 180
+    # Placeholder — see values.local.yaml. Ignored entirely if existingSecret is set.
+    signingKey: CHANGE_ME
+    # Name of a pre-existing Secret with a Jwt__SigningKey key.
+    existingSecret: ''
+  openTelemetry:
+    enabled: true
+    serviceName: operations-center-api
+    serviceVersion: '1.0.0'
+    # Empty = the chart's own Collector Service (observability.otelCollector).
+    # Set only to point at a Collector outside this release.
+    otlpEndpoint: ''
+
+web:
+  enabled: true
+  image:
+    repository: operations-center-web
+    tag: local
+  replicaCount: 1
+  containerPort: 80
+  service:
+    port: 80
+  probes:
+    path: /
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+# Runs `dotnet OperationsCenter.Api.dll --migrate` as a Helm hook
+# (pre-install,pre-upgrade) on every `helm upgrade --install` — see the
+# README's "Migrations" section for the hook-delete-policy and
+# wait-for-Postgres tradeoffs.
+migration:
+  enabled: true
+  backoffLimit: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# OPTIONAL, disabled by default — mirrors infra/k8s/api/api-seed-job.yaml.
+# Runs `--seed` (migrates, then seeds demo users/incidents) instead of
+# `--migrate`. Requires api.aspnetEnvironment: Development.
+seedJob:
+  enabled: false
+  backoffLimit: 2
+  seedPasswords:
+    admin: CHANGE_ME
+    operator: CHANGE_ME
+    viewer: CHANGE_ME
+    # Name of a pre-existing Secret with DEV_SEED_ADMIN_PASSWORD /
+    # DEV_SEED_OPERATOR_PASSWORD / DEV_SEED_VIEWER_PASSWORD keys.
+    existingSecret: ''
+
+observability:
+  otelCollector:
+    enabled: true
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: 0.156.0
+    service:
+      otlpGrpcPort: 4317
+      otlpHttpPort: 4318
+      prometheusPort: 8889
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  prometheus:
+    enabled: true
+    image:
+      repository: prom/prometheus
+      tag: v3.13.1
+    service:
+      port: 9090
+    # Local/demo-appropriate retention, not production tuning.
+    retention: 24h
+    persistence:
+      enabled: true
+      size: 2Gi
+      storageClassName: ''
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  grafana:
+    enabled: true
+    image:
+      repository: grafana/grafana-oss
+      tag: 11.4.0
+    service:
+      port: 3000
+    admin:
+      user: admin
+      # Placeholder — see values.local.yaml. Ignored entirely if existingSecret is set.
+      password: CHANGE_ME
+      # Name of a pre-existing Secret with a GF_SECURITY_ADMIN_PASSWORD key.
+      existingSecret: ''
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClassName: ''
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  seq:
+    enabled: true
+    image:
+      repository: datalust/seq
+      tag: '2024.3'
+    service:
+      port: 80
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClassName: ''
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  tempo:
+    enabled: true
+    image:
+      repository: grafana/tempo
+      tag: 2.6.1
+    service:
+      httpPort: 3200
+      otlpGrpcPort: 4317
+    persistence:
+      enabled: true
+      size: 2Gi
+      storageClassName: ''
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# Disabled by default. Enable only if your cluster already has an Ingress
+# controller (className left empty uses the cluster's default IngressClass).
+# Host-only routing, no path rewriting — see the chart README for why that
+# means no controller-specific WebSocket annotations are needed for /hubs.
+ingress:
+  enabled: false
+  className: ''
+  annotations: {}
+  tls: []
+  web:
+    enabled: true
+    host: operations-center.local
+  api:
+    enabled: true
+    host: api.operations-center.local
+  grafana:
+    enabled: true
+    host: grafana.operations-center.local
+  seq:
+    enabled: true
+    host: seq.operations-center.local
+  prometheus:
+    enabled: false
+    host: prometheus.operations-center.local

@@ -1,0 +1,19 @@
+{{- if .Values.observability.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "operations-center.fullname" . }}-prometheus-config
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: otel-collector
+        static_configs:
+          - targets: ['{{ include "operations-center.fullname" . }}-otel-collector:{{ .Values.observability.otelCollector.service.prometheusPort }}']
+{{- end }}

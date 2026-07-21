@@ -1,0 +1,23 @@
+{{- if .Values.observability.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "operations-center.fullname" . }}-grafana-dashboards-config
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  dashboards.yml: |
+    apiVersion: 1
+
+    providers:
+      - name: Operations Center
+        orgId: 1
+        folder: 'Operations Center'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+{{- end }}

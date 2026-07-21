@@ -1,0 +1,49 @@
+Operations Center ({{ .Release.Name }}) has been deployed to namespace "{{ .Release.Namespace }}".
+
+{{- if .Values.migration.enabled }}
+
+Database migrations ran as a pre-install/pre-upgrade hook
+({{ include "operations-center.fullname" . }}-api-migrate). Check its result with:
+
+  kubectl get jobs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=migration
+  kubectl logs -n {{ .Release.Namespace }} job/{{ include "operations-center.fullname" . }}-api-migrate
+{{- else }}
+
+migration.enabled is false — no migration Job ran. The API will not work
+against an unmigrated database. See the chart README's "Migrations" section.
+{{- end }}
+
+Check that everything is healthy:
+
+  kubectl get pods -n {{ .Release.Namespace }}
+
+Reach the stack with port-forward (no Ingress needed):
+{{- if .Values.web.enabled }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "operations-center.fullname" . }}-web 8080:{{ .Values.web.service.port }}
+  # then open http://localhost:8080
+{{- end }}
+{{- if .Values.api.enabled }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "operations-center.fullname" . }}-api 5000:{{ .Values.api.service.port }}
+  # then open http://localhost:5000/health, /ready, /swagger, /openapi/v1.json
+{{- end }}
+{{- if .Values.observability.grafana.enabled }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "operations-center.fullname" . }}-grafana 3000:{{ .Values.observability.grafana.service.port }}
+  # then open http://localhost:3000 ({{ .Values.observability.grafana.admin.user }} / <the password you set>)
+{{- end }}
+{{- if .Values.observability.seq.enabled }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "operations-center.fullname" . }}-seq 5341:{{ .Values.observability.seq.service.port }}
+  # then open http://localhost:5341
+{{- end }}
+{{- if .Values.observability.prometheus.enabled }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "operations-center.fullname" . }}-prometheus 9090:{{ .Values.observability.prometheus.service.port }}
+  # then open http://localhost:9090
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+Ingress is enabled. Check it picked up a controller (look for an ADDRESS):
+
+  kubectl get ingress -n {{ .Release.Namespace }} {{ include "operations-center.fullname" . }}
+{{- end }}
+
+Full documentation: infra/helm/operations-center/README.md

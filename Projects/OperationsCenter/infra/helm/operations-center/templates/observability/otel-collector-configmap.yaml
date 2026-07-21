@@ -1,0 +1,65 @@
+{{- if .Values.observability.otelCollector.enabled }}
+# Chart-local copy of infra/observability/otel-collector-config.yml /
+# infra/k8s/config/otel-collector-config.yaml, with internal hostnames
+# generated from the Helm release name instead of hardcoded. Docker Compose's
+# own config file is untouched by this chart.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "operations-center.fullname" . }}-otel-collector-config
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+data:
+  otel-collector-config.yml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch: {}
+
+    exporters:
+      # Metrics are re-exposed as a Prometheus scrape target at :8889/metrics,
+      # regardless of whether this chart's own Prometheus is enabled.
+      prometheus:
+        endpoint: 0.0.0.0:8889
+      # Printed to the collector log so nothing is silently dropped during troubleshooting.
+      debug:
+        verbosity: basic
+      {{- if .Values.observability.seq.enabled }}
+      # Seq (2024.3+) accepts OTLP logs natively at /ingest/otlp/v1/logs. The otlp_http
+      # exporter appends /v1/logs to this base endpoint automatically, so no Seq-specific
+      # exporter is needed. Default retry/sending-queue behavior means a down Seq instance
+      # just queues/drops at the collector without affecting the API.
+      otlp_http/seq:
+        endpoint: http://{{ include "operations-center.fullname" . }}-seq/ingest/otlp
+      {{- end }}
+      {{- if .Values.observability.tempo.enabled }}
+      # Tempo runs single-binary local mode with its own OTLP gRPC receiver. No TLS is
+      # configured on either side, so the exporter connects insecurely (plain gRPC).
+      otlp_grpc/tempo:
+        endpoint: {{ include "operations-center.fullname" . }}-tempo:{{ .Values.observability.tempo.service.otlpGrpcPort }}
+        tls:
+          insecure: true
+      {{- end }}
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [debug{{ if .Values.observability.tempo.enabled }}, otlp_grpc/tempo{{ end }}]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [debug{{ if .Values.observability.seq.enabled }}, otlp_http/seq{{ end }}]
+{{- end }}

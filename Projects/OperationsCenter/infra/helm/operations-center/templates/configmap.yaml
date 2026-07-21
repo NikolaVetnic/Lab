@@ -1,0 +1,30 @@
+{{- if .Values.api.enabled }}
+{{- $otlpEndpoint := .Values.api.openTelemetry.otlpEndpoint }}
+{{- if not $otlpEndpoint }}
+{{- if .Values.observability.otelCollector.enabled }}
+{{- $otlpEndpoint = printf "http://%s-otel-collector:%v" (include "operations-center.fullname" .) .Values.observability.otelCollector.service.otlpGrpcPort }}
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "operations-center.fullname" . }}-api-config
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+data:
+  # POSTGRES_DB/POSTGRES_USER are NOT here: unlike infra/k8s (separate static
+  # YAML files needing a shared ConfigMap to stay in sync), every template in
+  # this chart already reads .Values.postgres.auth directly, so the API
+  # Deployment and the migration/seed Jobs get them straight from values —
+  # nothing to keep in sync at runtime.
+  ASPNETCORE_ENVIRONMENT: {{ .Values.api.aspnetEnvironment | quote }}
+  Jwt__Issuer: {{ .Values.api.jwt.issuer | quote }}
+  Jwt__Audience: {{ .Values.api.jwt.audience | quote }}
+  Jwt__AccessTokenExpiryMinutes: {{ .Values.api.jwt.accessTokenExpiryMinutes | quote }}
+
+  OpenTelemetry__Enabled: {{ .Values.api.openTelemetry.enabled | quote }}
+  OpenTelemetry__ServiceName: {{ .Values.api.openTelemetry.serviceName | quote }}
+  OpenTelemetry__ServiceVersion: {{ .Values.api.openTelemetry.serviceVersion | quote }}
+  OpenTelemetry__OtlpEndpoint: {{ $otlpEndpoint | quote }}
+{{- end }}

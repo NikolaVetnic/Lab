@@ -1,0 +1,24 @@
+{{- if .Values.observability.otelCollector.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "operations-center.fullname" . }}-otel-collector
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "operations-center.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: {{ .Values.observability.otelCollector.service.otlpGrpcPort }}
+      targetPort: {{ .Values.observability.otelCollector.service.otlpGrpcPort }}
+    - name: otlp-http
+      port: {{ .Values.observability.otelCollector.service.otlpHttpPort }}
+      targetPort: {{ .Values.observability.otelCollector.service.otlpHttpPort }}
+    - name: prom-scrape
+      port: {{ .Values.observability.otelCollector.service.prometheusPort }}
+      targetPort: {{ .Values.observability.otelCollector.service.prometheusPort }}
+{{- end }}

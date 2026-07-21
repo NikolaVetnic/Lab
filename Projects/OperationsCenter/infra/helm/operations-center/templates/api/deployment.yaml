@@ -1,0 +1,90 @@
+{{- if .Values.api.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operations-center.fullname" . }}-api
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  # One replica for this first Helm version: SignalR connections are held by a
+  # single API instance in-memory. Scaling past 1 replica needs a SignalR
+  # backplane (e.g. Redis) first — not added yet. See the chart README.
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "operations-center.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: '{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.api.containerPort }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "operations-center.fullname" . }}-api-config
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:{{ .Values.api.containerPort }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.auth.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.postgres.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            # Host matches the postgres Service name (see postgres/service.yaml).
+            - name: ConnectionStrings__OperationsCenterDatabase
+              value: Host={{ include "operations-center.fullname" . }}-postgres;Port={{ .Values.postgres.service.port }};Database=$(POSTGRES_DB);Username=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD)
+            - name: Jwt__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.jwt.secretName" . }}
+                  key: Jwt__SigningKey
+            # ASP.NET Core's Data Protection key ring defaults to a path under $HOME;
+            # redirect it to the writable emptyDir below since the root filesystem is
+            # read-only and the container has no persistent home directory.
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.readinessPath }}
+              port: {{ .Values.api.containerPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.api.probes.livenessPath }}
+              port: {{ .Values.api.containerPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

@@ -1,0 +1,31 @@
+# Local/demo override values — the SAME dev-only defaults already checked into
+# .env.example at the repo root and infra/k8s/secrets/secrets.example.yaml.
+# Never real credentials; never use these values outside local development.
+#
+# Usage:
+#   helm upgrade --install operations-center infra/helm/operations-center \
+#     --namespace operations-center --create-namespace \
+#     --values infra/helm/operations-center/values.local.yaml
+#
+# To use your own local secrets instead of these checked-in demo ones, copy
+# this file (e.g. to values.mine.yaml, which is git-ignored — see the chart
+# README) and edit the values below before passing it with --values.
+
+postgres:
+  auth:
+    password: operations_center
+
+api:
+  jwt:
+    signingKey: development-only-signing-key-change-me
+
+seedJob:
+  seedPasswords:
+    admin: Admin123!
+    operator: Operator123!
+    viewer: Viewer123!
+
+observability:
+  grafana:
+    admin:
+      password: admin

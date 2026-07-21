@@ -1,0 +1,61 @@
+{{- if .Values.observability.seq.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "operations-center.fullname" . }}-seq
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: seq
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "operations-center.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: seq
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: seq
+    spec:
+      containers:
+        - name: seq
+          image: '{{ .Values.observability.seq.image.repository }}:{{ .Values.observability.seq.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            # Local/demo use only — accepting the EULA this way is not appropriate
+            # for production. See the chart README.
+            - name: ACCEPT_EULA
+              value: 'Y'
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          # Seq serves its web UI at "/"; used as a simple, dependable liveness
+          # signal since no dedicated health path is configured here.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.seq.resources | nindent 12 }}
+      volumes:
+        - name: data
+          {{- if .Values.observability.seq.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "operations-center.fullname" . }}-seq
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

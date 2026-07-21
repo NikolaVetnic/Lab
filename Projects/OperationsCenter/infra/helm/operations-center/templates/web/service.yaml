@@ -1,0 +1,17 @@
+{{- if .Values.web.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "operations-center.fullname" . }}-web
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "operations-center.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+  ports:
+    - port: {{ .Values.web.service.port }}
+      targetPort: {{ .Values.web.containerPort }}
+{{- end }}

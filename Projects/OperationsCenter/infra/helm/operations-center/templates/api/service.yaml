@@ -1,0 +1,20 @@
+{{- if .Values.api.enabled }}
+# Named "<fullname>-api" — with the default release name "operations-center"
+# this renders as "operations-center-api", which is the hostname baked into
+# the web image's nginx.conf at build time. See values.yaml's header comment.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "operations-center.fullname" . }}-api
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "operations-center.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+  ports:
+    - port: {{ .Values.api.service.port }}
+      targetPort: {{ .Values.api.containerPort }}
+{{- end }}

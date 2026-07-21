@@ -1,0 +1,115 @@
+{{- if and .Values.api.enabled .Values.seedJob.enabled }}
+# OPTIONAL, disabled by default — mirrors infra/k8s/api/api-seed-job.yaml.
+# Runs the API image's `--seed` mode (migrates, then seeds idempotent demo
+# users — admin@/operator@/viewer@operations-center.local — and demo
+# incidents). Requires api.aspnetEnvironment: Development.
+#
+# Same hook strategy as api-migrate (see migration-job.yaml for the reasoning),
+# with hook-weight "1" so it runs after the migration hook if both happen to
+# be enabled at once — harmless either way since `--seed` migrates internally
+# too, but keeps hook log ordering predictable.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "operations-center.fullname" . }}-api-seed
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+    app.kubernetes.io/component: seed
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: '1'
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.seedJob.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "operations-center.labels" . | nindent 8 }}
+        app.kubernetes.io/component: seed
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: wait-for-postgres
+          image: '{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}'
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h {{ include "operations-center.fullname" . }}-postgres -p {{ .Values.postgres.service.port }}; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      containers:
+        - name: seed
+          image: '{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}'
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - --seed
+          envFrom:
+            - configMapRef:
+                name: {{ include "operations-center.fullname" . }}-api-config
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.auth.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.auth.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.postgres.secretName" . }}
+                  key: POSTGRES_PASSWORD
+            - name: ConnectionStrings__OperationsCenterDatabase
+              value: Host={{ include "operations-center.fullname" . }}-postgres;Port={{ .Values.postgres.service.port }};Database=$(POSTGRES_DB);Username=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD)
+            - name: Jwt__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.jwt.secretName" . }}
+                  key: Jwt__SigningKey
+            - name: DEV_SEED_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.seed.secretName" . }}
+                  key: DEV_SEED_ADMIN_PASSWORD
+            - name: DEV_SEED_OPERATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.seed.secretName" . }}
+                  key: DEV_SEED_OPERATOR_PASSWORD
+            - name: DEV_SEED_VIEWER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "operations-center.seed.secretName" . }}
+                  key: DEV_SEED_VIEWER_PASSWORD
+            - name: HOME
+              value: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

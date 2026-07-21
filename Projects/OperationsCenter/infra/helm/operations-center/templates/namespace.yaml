@@ -1,0 +1,14 @@
+{{- /*
+Optional. Off by default — see the README's "Namespace" section: the
+recommended path is `helm install --create-namespace`, not this template.
+Enable only if you specifically want the namespace's lifecycle tied to this
+release (it gets deleted on `helm uninstall` along with everything else).
+*/}}
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace.name }}
+  labels:
+    {{- include "operations-center.labels" . | nindent 4 }}
+{{- end }}
